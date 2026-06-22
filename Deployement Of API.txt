@@ -1,0 +1,190 @@
+Here is a detailed, step-by-step breakdown of how to set up your FastAPI application for production on both Windows and Linux, along with the essential production checklist.
+
+1. Windows Server Deployment
+Deploying on Windows is common in enterprise and hospital environments, especially if you are heavily tied to an Oracle database or Active Directory.
+
+Step 1: Use a Production Server (Uvicorn Workers)
+When developing, you likely ran uvicorn main:app --reload. In production, you drop the --reload flag and use multiple "workers" to handle concurrent requests.
+
+Open your terminal or command prompt on the server.
+
+Ensure you are in your project directory and your virtual environment is activated.
+
+Test the production command:
+
+Bash
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 4
+Note: Set the number of workers to roughly (2 x CPU Cores) + 1. We bind to 127.0.0.1 (localhost) so the API isn't directly exposed to the internet yet.
+
+Step 2: Run as a Service (NSSM)
+You cannot leave a command prompt window open on a server forever. If it closes, your API goes down. NSSM (Non-Sucking Service Manager) wraps your Python process into a background Windows Service.
+
+Download NSSM and extract it.
+
+Open a Command Prompt as Administrator and navigate to the extracted NSSM win64 folder.
+
+Run the install command:
+
+DOS
+nssm install HospitalAPI
+A GUI will pop up. Fill it out:
+
+Path: Browse to the python.exe inside your virtual environment (e.g., C:\YourApp\venv\Scripts\python.exe).
+
+Arguments: -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 4
+
+Details Tab: Set the startup type to "Automatic".
+
+Click Install Service. You can now start, stop, and restart your API from the standard Windows services.msc panel.
+
+Step 3: Reverse Proxy (IIS)
+IIS (Internet Information Services) will listen on port 80 (HTTP) or 443 (HTTPS) and forward traffic to your Python app running on port 8000.
+
+Install IIS on your Windows Server.
+
+Download and install two Microsoft extensions for IIS: Application Request Routing (ARR) and URL Rewrite.
+
+Open IIS Manager, click on your Server Node, and open Application Request Routing Cache. Click Server Proxy Settings on the right and check Enable proxy.
+
+Go to your Default Web Site (or create a new one). Open URL Rewrite.
+
+Add a new Blank Rule:
+
+Match URL: Pattern: (.*)
+
+Action: Rewrite. URL: [http://127.0.0.1:8000/](http://127.0.0.1:8000/){R:1}
+
+Apply the rule. Now, when a request hits your server's IP, IIS routes it silently to your Python app.
+
+2. Linux Server Deployment (Ubuntu/Debian)
+Linux is the industry standard for Python deployments, offering excellent performance and stability.
+
+Step 1: Gunicorn (The Process Manager)
+While Uvicorn is great at handling the ASGI network protocol, it is not a robust process manager. Gunicorn is used to manage Uvicorn workers, restarting them if they crash.
+
+Install Gunicorn and Uvicorn:
+
+Bash
+pip install gunicorn uvicorn
+Test the launch command:
+
+Bash
+gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000
+Step 2: Systemd (Run as a Service)
+Systemd is the Linux equivalent of Windows Services.
+
+Create a new service file:
+
+Bash
+sudo nano /etc/systemd/system/hospitalapi.service
+Add the following configuration (adjusting paths to match your server):
+
+Ini, TOML
+[Unit]
+Description=Gunicorn instance to serve Hospital API
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/your_app_folder
+Environment="PATH=/home/ubuntu/your_app_folder/venv/bin"
+ExecStart=/home/ubuntu/your_app_folder/venv/bin/gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000
+
+[Install]
+WantedBy=multi-user.target
+Start and enable the service to run on boot:
+
+Bash
+sudo systemctl daemon-reload
+sudo systemctl start hospitalapi
+sudo systemctl enable hospitalapi
+Step 3: Reverse Proxy (Nginx)
+Nginx sits in front of Gunicorn to handle client connections and SSL certificates.
+
+Install Nginx: sudo apt install nginx
+
+Create a configuration file: sudo nano /etc/nginx/sites-available/hospitalapi
+
+Add the server block:
+
+Nginx
+server {
+    listen 80;
+    server_name api.yourhospital.com; # Or your server's IP
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+Enable it and restart Nginx:
+
+Bash
+sudo ln -s /etc/nginx/sites-available/hospitalapi /etc/nginx/sites-enabled
+sudo systemctl restart nginx
+3. The "Production Checklist"
+Regardless of the OS you choose, these application-level configurations are mandatory for a stable, secure release.
+
+1. Environment Variables
+Never hardcode passwords or secret keys in main.py or database.py.
+
+Create a .env file in your project root:
+
+Code snippet
+DB_USER=hospital_admin
+DB_PASS=SuperSecretPassword123
+SECRET_KEY=your_jwt_secret_key
+Use the python-dotenv library to load these into your app. If you commit your code to Git, make sure .env is in your .gitignore file.
+
+2. CORS Settings (Cross-Origin Resource Sharing)
+If you ever plan to build a web dashboard (React/Vue/Angular) to accompany your React Native app, browsers will block requests unless CORS is configured.
+
+In your main.py:
+
+Python
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+origins = [
+    "https://portal.yourhospital.com",
+    "http://localhost:3000", # For local web dev
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins, # For mobile apps, you can sometimes use ["*"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+3. Logging
+When an API crashes in production, you won't have a terminal to look at. You must write errors to a file.
+
+Set up Python's built-in logging module in your main.py:
+
+Python
+import logging
+
+logging.basicConfig(
+    filename='api_errors.log',
+    level=logging.ERROR,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+Wrap risky database operations in try/except blocks and log the exception.
+
+4. Database Pooling
+Opening a new connection to an Oracle database for every single API request is very slow and can crash the database server.
+
+SQLAlchemy handles pooling automatically, but you should optimize it in your database.py:
+
+Python
+  engine = create_engine(
+      SQLALCHEMY_DATABASE_URL,
+      pool_size=10,         # Keep 10 connections open and ready
+      max_overflow=20,      # Allow up to 20 extra if there's a traffic spike
+      pool_recycle=3600     # Refresh connections every hour so they don't go stale
+  )
