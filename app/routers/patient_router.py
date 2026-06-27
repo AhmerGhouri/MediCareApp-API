@@ -438,9 +438,25 @@ def get_consultants(db: Session = Depends(get_db)):
     
     if not result_rows:
         raise HTTPException(status_code=403, detail="No Upcoming Appointments found for this MR Number")
+
     
-    
-    return result_rows
+    clean_data = []
+    for row in result_rows:
+        row_dict = {}
+        for key, value in row.items():
+            # If value is raw bytes (like the image or a binary id), convert to string safely
+            if isinstance(value, bytes):
+                try:
+                    row_dict[key] = value.decode('utf-8')
+                except UnicodeDecodeError:
+                    # If it's image data or encrypted bytes, encode as base64 string
+                    row_dict[key] = base64.b64encode(value).decode('utf-8')
+            else:
+                row_dict[key] = value
+        clean_data.append(row_dict)
+        
+    # JSONResponse bypasses FastAPI's internal serialisation pipeline
+    return JSONResponse(content=clean_data)
 
     
     # clean_data = []
