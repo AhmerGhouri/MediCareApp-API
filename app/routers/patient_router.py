@@ -1,5 +1,7 @@
 # app/routers/patient_router.py
 import base64
+from collections import defaultdict
+from datetime import date, datetime
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -8,18 +10,11 @@ from sqlalchemy.orm import Session
 from app.db.oracle import get_db
 from app.deps import get_current_user
 from app.models.models import AppUser, HospitalPatient
-# from app.models.schemas import ConsultantOut
 
 router = APIRouter()
 
 @router.get("/{opat_id}/reports")
-def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
-    
-    # SECURITY CHECK: Verify that the logged-in user actually owns this MR Number!
-    # patient_record = db.query(HospitalPatient).filter(
-    #     HospitalPatient.opat_id == opat_id,
-    #     HospitalPatient.opat_phone == current_user.mob
-    # ).first()
+def get_lab_reports(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
     
     
     # TODO: Perform your Oracle queries here to get today's clinic, etc. using mr_no
@@ -80,70 +75,10 @@ def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: App
             } for row in result_rows
         ]
     }
-  
-  
-# @router.get("/{opat_id}/radiology")
-# def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
-        
-    
-#     query = text("""SELECT
-#                         M.BILLM_OPAT_ID , 
-#                         M.BILLM_ID,
-#                         TRIM(M.BILLM_NAME) AS BILLM_NAME ,
-#                         TRIM(M.BILLM_SYS_DATE) AS BILLM_SYS_DATE, 
-#                         TRIM(M.BILLM_SER_DEPT) AS BILLM_SER_DEPT , 
-#                         TRIM(M.BILLM_SSUBDEPT_ID) AS BILLM_SSUBDEPT_ID ,
-#                         M.BILLM_CELL_NO ,
-#                         TRIM(D.BILLD_SDETAIL_COM_ID) AS BILLD_SDETAIL_COM_ID , 
-#                         TRIM(S.SDETAIL_DESC) AS SDETAIL_DESC , 
-#                         O.OPAT_PHONE
-#                     FROM 
-#                         BILLM_T M , BILLD_T D , SDETAIL_T S, OPAT_T O
-#                     WHERE 
-#                         M.BILLM_SER_DEPT = 'XR'
-#                     AND 
-#                         M.BILLM_OPAT_ID = :opat_id
-#                     AND 
-#                         M.BILLM_OPAT_ID = O.OPAT_ID
-#                     AND 
-#                         D.BILLD_SCLASS_ID NOT IN 'CM'
-#                     AND 
-#                         D.BILLD_SDETAIL_COM_ID = S.SDETAIL_COM_ID
-#                     AND 
-#                         M.BILLM_SER_DEPT = D.BILLD_SER_DEPT
-#                     AND 
-#                         M.BILLM_ID = D.BILLD_BILLM_ID 
-#                     """)
-    
-    
-#     # .mappings() makes it easy to access columns by their names
-#     result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
-    
-#     if not result_rows:
-#         raise HTTPException(status_code=403, detail="No Radiology Report found for this MR Number")
-    
-#     # Since the patient details (name, id) are the same in every row, 
-#     # we take them from the first row.
-#     first_row = result_rows[0]
-        
-#     return {
-#         "opat_id" : first_row["billm_opat_id"],
-#         "patient_name" : first_row["billm_name"],
-#         "mobile" : first_row["opat_phone"],
-#         "reports" : [
-#             {
-#                 "test_id": row["billm_id"],
-#                 "test_desc": row["sdetail_desc"],
-#                 "test_date": row["billm_sys_date"],
-#                 "billm_id": row["billd_sdetail_com_id"]
-#             } for row in result_rows
-#         ]
-#     }
-    
-    
+     
   
 @router.get("/{opat_id}/radiology")
-def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
+def get_radiology_reports(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
         
     
     query = text("""SELECT DISTINCT
@@ -177,6 +112,8 @@ def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: App
                         (SUBSTR(T.reptm_no, 1, 2)) = (SUBSTR(T.reptm_no, 1, 2))
                     AND 
                         T.REPTM_OPAT_ID = :opat_id
+                    AND
+                        (SELECT O.OPAT_PHONE FROM OPAT_T O WHERE O.OPAT_ID = T.REPTM_OPAT_ID) = :mobile_number
                      """)
     
     
@@ -213,12 +150,13 @@ def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: App
     
     
 @router.get("/{opat_id}/inpatienthistory")
-def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
+def get_inpatient_history(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
         
     
     query = text("""SELECT 
                         I.IPAT_ID , 
-                        I.IPAT_OPAT_ID , 
+                        I.IPAT_OPAT_ID ,
+                        TRIM(O.OPAT_PNAME) OPAT_PNAME,
                         I.IPAT_ADATE , 
                         I.IPAT_DDATE , 
                         I.IPAT_CONSL_ID , 
@@ -230,13 +168,16 @@ def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: App
                     FROM 
                         IPAT_T I , 
                         DIAG_T D , 
-                        CONSL_T C
+                        CONSL_T C,
+                        OPAT_T O
                     WHERE 
                         I.IPAT_OPAT_ID  = :opat_id
                     AND 
                         I.IPAT_CONSL_ID = C.CONSL_ID
                     AND 
                         I.IPAT_A_DIAG_ID = D.DIAG_ID 
+                    AND
+                        (O.OPAT_PHONE = :mobile_number OR I.IPAT_SPOUSE_PHONE = :mobile_number)
                     """)
     
     
@@ -252,7 +193,7 @@ def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: App
         
     return {
         "opat_id" : first_row["ipat_opat_id"],
-        "patient_name" : first_row["ipat_opat_id"],
+        "patient_name" : first_row["opat_pname"],
         "mobile" : first_row["ipat_spouse_phone"],
         "inpatienthistory" : [
             {
@@ -267,9 +208,25 @@ def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: App
     }
     
 @router.get("/{opat_id}/consultationhistory")
-def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
+def get_consultation_history(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
         
+           
+    check_query = text("""
+        SELECT OPAT_ID FROM OPAT_T WHERE OPAT_ID = :opat_id AND OPAT_PHONE = :mobile_number
+        UNION
+        SELECT BILLM_OPAT_ID FROM BILLM_T WHERE BILLM_OPAT_ID = :opat_id AND BILLM_CELL_NO = :mobile_number
+    """)
     
+    access_allowed = db.execute(check_query, {"opat_id": opat_id, "mobile_number": current_user.mob}).fetchone()
+    
+    # If the phone doesn't match either record, block them immediately
+    if not access_allowed:
+        raise HTTPException(status_code=404, detail="No Consultation History found for this MR Number")
+        
+        
+    # STEP 2: LIGHTWEIGHT DATA FETCH
+    # Now that we know the user is allowed to see this data, we run your original query 
+    # without the heavy table join that was causing the database to lock up.
     query = text("""SELECT 
                         M.BILLM_ID , 
                         M.BILLM_SER_DATE , 
@@ -286,20 +243,15 @@ def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: App
                         M.BILLM_OPAT_ID = :opat_id
                     AND 
                         M.BILLM_SER_DEPT <> 'BL'
-                    --AND M.BILLM_SER_DEPT = 'MC'
                     AND 
                         M.BILLM_CONSL_ID = C.CONSL_ID
                     """)
     
-    
-    # .mappings() makes it easy to access columns by their names
-    result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
+    result_rows = db.execute(query, {"opat_id": opat_id}).mappings().all()
     
     if not result_rows:
-        raise HTTPException(status_code=403, detail="No CONSULTATIONS Report found for this MR Number")
+        raise HTTPException(status_code=404, detail="No Consultation History found for this MR Number")
     
-    # Since the patient details (name, id) are the same in every row, 
-    # we take them from the first row.
     first_row = result_rows[0]
             
     return {
@@ -320,7 +272,7 @@ def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: App
     
     
 @router.get("/{opat_id}/upcomingappointments")
-def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
+def get_upcomingappointments(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
         
     
     query = text("""SELECT
@@ -382,7 +334,7 @@ def get_dashboard(opat_id: str, db: Session = Depends(get_db), current_user: App
     
     
 @router.get("/todaysclinic")
-def get_dashboard(db: Session = Depends(get_db)):
+def get_todaysclinic(db: Session = Depends(get_db)):
         
     query = text(""" SELECT
                         TO_CHAR(TO_DATE(E.TIME_FR, 'HH24:MI'), 'HH12:MI AM') AS TIME_FR_12,
@@ -433,7 +385,6 @@ def get_dashboard(db: Session = Depends(get_db)):
     # we take them from the first row.
     first_row = result_rows[0]
     
-    # return result_rows
     
     return {
         "day" : first_row["current_day_val"],
@@ -456,73 +407,152 @@ def get_dashboard(db: Session = Depends(get_db)):
     
     
 @router.get("/consultants" )
-def get_dashboard(db: Session = Depends(get_db)):
+def get_consultants(db: Session = Depends(get_db)):
         
-    
-    query = text("""SELECT 
-                        TRIM(E.CONSL_ID) AS CONSL_ID , 
-                        TRIM(E.CONSL_DESC) AS CONSL_DESC , 
-                        TRIM(E.CONSL_DEGR) AS CONSL_DEGR , 
-                        TRIM(E.CONSL_SPEC_ID) AS CONSL_SPEC_ID , 
-                        E.CONSL_STATUS , 
-                        TRIM(E.CONSL_MDEPT_ID) AS CONSL_MDEPT_ID , 
-                        TRIM(D.MDEPT_DESC) AS MDEPT_DESC,
-                        E.CONSL_IMG
+    query = text("""SELECT
+                        TRIM(C.CONSL_ID) CONSL_ID, 
+                        TRIM(C.CONSL_DESC) CONSL_DESC,
+                        C.CONSL_DEGR, 
+                        C.CONSL_SPEC_ID,
+                        C.CONSL_MDEPT_ID,
+                        TRIM(D.MDEPT_DESC) MDEPT_DESC,
+                        --C.CONSL_IMG1,
+                        C.CONSL_IMG,
+                        C.CONSL_STATUS
                     FROM 
-                        CONSL_T E , MDEPT_T D
+                        CONSL_T C, 
+                        TIMING_T A,
+                        MDEPT_T D
                     WHERE 
-                        E.CONSL_STATUS = 1
-                    AND
-                        E.CONSL_MDEPT_ID = D.MDEPT_ID
-                    AND
-                        E.CONSL_MDEPT_ID NOT IN ('ANES' , 'ALLD' , 'EMER' , 'RADI' , '5000' , 'SONO' , 'MHH' , 'JMCH' , 'ER' , 'CASU' , 'NA' , 'HE')
+                        C.CONSL_STATUS = 1
                     AND 
-                        E.CONSL_SPEC_ID NOT IN ('TECH' , 'ALL')
-                    ORDER BY 
-                        D.MDEPT_DESC,
-                        E.CONSL_DESC
+                        D.MDEPT_ID = C.CONSL_MDEPT_ID
+                    AND 
+                        LTRIM(RTRIM(C.CONSL_ID)) = LTRIM(RTRIM(A.TIME_CONSL_ID))
                     """)
     
+        
     
     # .mappings() makes it easy to access columns by their names
     result_rows = db.execute(query).mappings().all()
     
     if not result_rows:
         raise HTTPException(status_code=403, detail="No Upcoming Appointments found for this MR Number")
+    
+    
+    return result_rows
 
     
-    clean_data = []
-    for row in result_rows:
-        row_dict = {}
-        for key, value in row.items():
-            # If value is raw bytes (like the image or a binary id), convert to string safely
-            if isinstance(value, bytes):
-                try:
-                    row_dict[key] = value.decode('utf-8')
-                except UnicodeDecodeError:
-                    # If it's image data or encrypted bytes, encode as base64 string
-                    row_dict[key] = base64.b64encode(value).decode('utf-8')
-            else:
-                row_dict[key] = value
-        clean_data.append(row_dict)
+    # clean_data = []
+    # for row in result_rows:
+    #     row_dict = {}
+    #     for key, value in row.items():
+    #         # If value is raw bytes (like the image or a binary id), convert to string safely
+    #         if isinstance(value, bytes):
+    #             try:
+    #                 row_dict[key] = value.decode('utf-8')
+    #             except UnicodeDecodeError:
+    #                 # If it's image data or encrypted bytes, encode as base64 string
+    #                 row_dict[key] = base64.b64encode(value).decode('utf-8')
+    #         else:
+    #             row_dict[key] = value
+    #     clean_data.append(row_dict)
         
-    # JSONResponse bypasses FastAPI's internal serialisation pipeline
-    return JSONResponse(content=clean_data)
+    # # JSONResponse bypasses FastAPI's internal serialisation pipeline
+    # return JSONResponse(content=clean_data)
 
-    # return {
-    #     "opat_id" : first_row["pat_mr"],
-    #     "patient_name" : first_row["pat_name"],
-    #     "mobile" : first_row["pat_cell"],
-    #     "appointments" : [
-    #         {
-    #             "trans_id": row["consl_tran_id"],
-    #             "consultant": row["consl_desc"],
-    #             "app_date": row["app_date"],
-    #             "time_in": row["time_in"],
-    #             "dept_id": row["mdept_id"],
-    #             "dept": row["mdept_desc"],
-                
-    #         } for row in result_rows
-    #     ]
-    # }
     
+    
+
+@router.get("/{opat_id}/{consl_id}/{app_date}/appointments")
+def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
+            
+    query = text(""" SELECT
+                        E.TIME_FR,
+                        E.TIME_TO,
+                        E.TIME_DAYS,
+                        E.TIME_DATE,
+                        E.TIME_CONSL_ID,
+                        A.CONSLD_ID,
+                        A.APPD_DATE,
+                        A.TIME_IN,
+                        A.PAT_MR,
+                        TRIM(C.CONSL_DESC) CONSL_DESC,
+                        E.TIME_CONSL_DEPT,
+                        TRIM(D.MDEPT_DESC) MDEPT_DESC
+                    FROM 
+                        TIMING_T E,
+                        CONSL_T C,
+                        MDEPT_T D,
+                        CONSL_APPD_T A
+                    WHERE
+                        E.TIME_CONSL_DEPT = D.MDEPT_ID
+                    AND 
+                        C.CONSL_ID = E.TIME_CONSL_ID
+                    AND 
+                        C.CONSL_ID = :consl_id
+                    AND
+                        C.CONSL_ID = A.CONSLD_ID
+                    AND
+                        A.APPD_DATE = :app_date
+                    AND
+                        A.APPD_DAY = E.TIME_DAYS
+                    --AND
+                        --A.PAT_MR IS NOT NULL
+                    GROUP BY  
+                        E.TIME_CONSL_DEPT,
+                        E.TIME_FR,
+                        E.TIME_TO,
+                        E.TIME_DAYS,
+                        E.TIME_DATE,
+                        E.TIME_CONSL_ID,
+                        C.CONSL_DESC,
+                        A.CONSLD_ID,
+                        A.APPD_DATE,
+                        A.TIME_IN,
+                        A.APPD_DATE,
+                        A.PAT_MR,
+                        E.TIME_CONSL_DEPT,
+                        D.MDEPT_DESC
+                        ORDER BY TIME_IN ASC 
+                    """)
+    
+    
+    # .mappings() makes it easy to access columns by their names
+    result_rows = db.execute(query, {"opat_id": opat_id, "consl_id" : consl_id , "app_date" : app_date , "mobile_number": current_user.mob}).mappings().all()
+    
+    if not result_rows:
+        raise HTTPException(status_code=403, detail="No Upcoming Appointments found for this MR Number")
+    
+    # Since the patient details (name, id) are the same in every row, 
+    # we take them from the first row.
+    first_row = result_rows[0]
+    
+    grouped_appointments = defaultdict(list)
+    
+    for row in result_rows:
+        # Convert date object/string safely for JSON keying if needed
+        # (FastAPI automatically serializes date objects in the final response)
+        key = (row["time_days"], row["time_date"])
+        
+        grouped_appointments[key].append({
+            "time_fr": row["time_fr"],
+            "time_to": row["time_to"],
+            "time_slot": row["time_in"]
+        })
+      
+   
+    return {
+        "consl_id": first_row["time_consl_id"],
+        "consl_name": first_row["consl_desc"],
+        "dept_id": first_row["time_consl_dept"],
+        "Dept": first_row["mdept_desc"],
+        "appointments": [
+            {
+                "time_days": day,
+                "time_date": str(app_dt), # Forces date objects into uniform strings
+                "time_slot": slots
+            }
+            for (day, app_dt), slots in grouped_appointments.items()
+        ]
+    }

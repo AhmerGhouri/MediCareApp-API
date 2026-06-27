@@ -35,4 +35,3 @@ class EligibleUser(Base):
     
     mob = Column(String, primary_key=True)
     pname = Column(String)
-    # This table doesn't have passwords, just the authorized mobile numbers

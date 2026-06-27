@@ -11,7 +11,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 try:
-    oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_23_26")
+    # oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_23_26")
+    oracledb.init_oracle_client(lib_dir=r"C:\\instantclient_23_0")
+    
     print("Thick mode initialized.")
 except Exception as err:
     print("Error initializing Oracle Client:", err)

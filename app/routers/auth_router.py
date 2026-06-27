@@ -38,13 +38,16 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        # raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise e
     
     
 @router.post("/login", response_model=LoginResponse)
+# @router.post("/login")
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     # 1. Verify the app user credentials
     user = db.query(AppUser).filter(AppUser.mob == request.mobile_number).first()
+    
     if not user or not verify_password(request.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
@@ -54,6 +57,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     # 2. Fetch all MR numbers associated with this mobile number
     patients = db.query(HospitalPatient).filter(HospitalPatient.opat_phone == user.mob).all()
     
+    
     # 3. Generate the JWT Token
     access_token = create_access_token(data={"sub": user.mob})
     
@@ -61,9 +65,11 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "mr_numbers": [{"mr_no": str(p.opat_id), "patient_name": p.opat_pname, "gender": p.opat_sex, "dob": p.opat_bdate} for p in patients]
+        # "mr_numbers": [{"mr_no": str(p.opat_id), "patient_name": p.opat_pname , "gender" : p.opat_sex , "dob" : p.opat_bdate} for p in patients]
+        "mr_numbers": [{"mr_no": str(p.opat_id), "patient_name": p.opat_pname , "gender" : p.opat_sex , "dob" : p.opat_bdate} for p in patients]
     }
     
+    # return access_token
     
 @router.post("/check-eligibility")
 def check_eligibility(request: CheckEligibilityRequest, db: Session = Depends(get_db)):
