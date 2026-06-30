@@ -31,6 +31,20 @@ class LoginResponse(BaseModel):
 class CheckEligibilityRequest(BaseModel):
     mobile_number: str
     
+    
+class AppointmentBooking(BaseModel):
+    tran_id : int
+    consl_id : str
+    appoint_date : str
+    mobile_number : str
+    from_time : str
+    to_time : str
+    appointment_day : str
+    appoint_time : str
+    opat_id : str
+    patient_name : str
+    # appoint_confirm_date : str    
+    
 # class ConsultantOut(BaseModel):
     
 #     model_config = ConfigDict(

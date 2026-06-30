@@ -1,15 +1,17 @@
 # app/routers/patient_router.py
 import base64
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from oracledb import IntegrityError
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.db.oracle import get_db
 from app.deps import get_current_user
 from app.models.models import AppUser, HospitalPatient
+from app.models.schemas import AppointmentBooking
 
 router = APIRouter()
 
@@ -483,7 +485,7 @@ def get_consultants(db: Session = Depends(get_db)):
 @router.get("/{opat_id}/{consl_id}/{app_date}/appointments")
 def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
             
-    query = text(""" SELECT
+    query = text("""SELECT
                         E.TIME_FR,
                         E.TIME_TO,
                         E.TIME_DAYS,
@@ -572,3 +574,123 @@ def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session
             for (day, app_dt), slots in grouped_appointments.items()
         ]
     }
+
+  
+  
+@router.post("/{opat_id}/{consl_id}/createappointment")
+def create_appointment(
+    opat_id: str, 
+    consl_id: str, # Unified path parameter
+    appointment: AppointmentBooking, 
+    db: Session = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user)
+):
+    # STEP 1: SAFETY DATE PARSING (Prevents Oracle date format mismatch crashes)
+    try:
+        parsed_date = datetime.strptime(appointment.appoint_date.upper(), "%d-%b-%Y").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=400, 
+            detail="Invalid date format in body. Please use DD-MON-YYYY (e.g., 27-JUN-2026)"
+        )
+
+    # STEP 2: SECURITY VERIFICATION
+    # Ensure the logged-in mobile user can only book for their own profile MR number
+    check_query = text("SELECT 1 FROM OPAT_T WHERE OPAT_ID = :opat_id AND OPAT_PHONE = :mobile_number")
+    access_allowed = db.execute(check_query, {"opat_id": opat_id, "mobile_number": current_user.mob}).fetchone()
+    
+    if not access_allowed:
+        raise HTTPException(status_code=403, detail="Unauthorized: Profile details do not match logged-in user.")
+
+    # STEP 3: QUERY DEFINITIONS
+    # Parent Header: Tracks the overall transaction record
+    query_parent = text("""
+        INSERT INTO CONSL_APP_T (
+            CONSL_TRAN_ID, CONSL_ID, APP_DATE, APP_FR_TIME, APP_TO_TIME, CONSL_DAYS
+        ) VALUES (
+            :tran_id, :consl_id, :appoint_date, :from_time, :to_time, :appointment_day
+        )
+    """)
+    
+    # Child Slot: UPDATES the pre-existing unbooked slot atomically
+    query_child = text("""
+        UPDATE CONSL_APPD_T 
+        SET 
+            PAT_MR = :opat_id,
+            TRAN_ID = :tran_id,
+            PAT_CELL = :mobile_number,
+            PAT_NAME = :patient_name,
+            TIME_STATUS = 1
+        WHERE 
+            CONSLD_ID = :consl_id 
+        AND 
+            APPD_DATE = :appoint_date 
+        AND 
+            TIME_IN = :appoint_time
+        AND 
+            PAT_MR IS NULL  -- CRITICAL: Atomic check protects against double-booking
+    """)
+    
+    max_attempts = 5
+    attempt = 0
+    generated_trans_id = None
+    
+    # STEP 4: TRANSACTION RETRY LOOP
+    while attempt < max_attempts:
+        try:
+            # Fetch maximum ID safely for the parent table record identifier
+            current_max = db.execute(text("SELECT COALESCE(MAX(CONSL_TRAN_ID), 0) FROM CONSL_APP_T")).scalar()
+            generated_trans_id = current_max + 1
+            
+            parameters = {
+                "tran_id": generated_trans_id, 
+                "opat_id": opat_id, 
+                "consl_id": consl_id,  # Using verified path variable
+                "appoint_date": parsed_date, 
+                "mobile_number": current_user.mob,
+                "from_time": appointment.from_time,
+                "to_time": appointment.to_time,
+                "appointment_day": appointment.appointment_day,
+                "appoint_time": appointment.appoint_time,
+                "patient_name": appointment.patient_name
+            }
+            
+            # Execute Parent insert
+            db.execute(query_parent, parameters)
+            
+            # Execute Child update and analyze row effect
+            child_result = db.execute(query_child, parameters)
+            
+            if child_result.rowcount == 0:
+                # If 0 rows are updated, the slot was either already taken or the details are invalid
+                db.rollback()
+                raise HTTPException(
+                    status_code=409, 
+                    detail="This appointment slot is no longer available. It may have just been booked by another patient."
+                )
+            
+            # Everything succeeded cleanly
+            db.commit()
+            break
+            
+        except IntegrityError as ie:
+            db.rollback()
+            attempt += 1
+            time.sleep(0.05)  # 50ms pause to let competing queries clear out
+            if attempt >= max_attempts:
+                raise HTTPException(status_code=400, detail=f"Transaction collision limit reached: {str(ie)}")
+        
+        except HTTPException:
+            # Re-raise our custom 409 conflict exception cleanly without dropping into generic error handler
+            raise
+            
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=f"Database execution failed: {str(e)}")
+        
+    return {
+        "status": "success", 
+        "message": "Appointment booked and slot allocated successfully.", 
+        "generated_id": generated_trans_id
+    } 
+  
