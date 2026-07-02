@@ -303,10 +303,16 @@ def get_upcomingappointments(opat_id: str, db: Session = Depends(get_db), curren
                         M.MDEPT_ID = CN.CONSL_MDEPT_ID
                     AND
                         S.CONSL_STATUS <> 'C'
-                    AND
-                        S.APP_DATE >= TO_CHAR(SYSDATE , 'DD/MON/YYYY')
+                    AND (
+                        -- Scenario 1: The appointment date is in the absolute future (tomorrow or later)
+                        S.APP_DATE > TO_CHAR(SYSDATE, 'DD/MON/YYYY') 
+                    OR 
+                        -- Scenario 2: The appointment is TODAY, so we must strictly check the time
+                        (
+                        S.APP_DATE = TO_CHAR(SYSDATE, 'DD/MON/YYYY') 
                     AND 
-                        TO_CHAR(D.TIME_IN) >= TO_CHAR(SYSDATE, 'HH24:MI')
+                        D.TIME_IN >= TO_CHAR(SYSDATE, 'HH24:MI')
+                        ))
                     """)
     
     
@@ -519,8 +525,8 @@ def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session
                         A.APPD_DATE = :app_date
                     AND
                         A.APPD_DAY = E.TIME_DAYS
-                    --AND
-                        --A.PAT_MR IS NOT NULL
+                    AND
+                        A.PAT_MR IS NULL
                     GROUP BY  
                         E.TIME_CONSL_DEPT,
                         E.TIME_FR,
