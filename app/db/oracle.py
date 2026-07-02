@@ -26,7 +26,14 @@ DB_DSN = os.getenv("DB_DSN") # e.g., localhost:1521/XEPDB1
 # SQLAlchemy Oracle Connection String
 SQLALCHEMY_DATABASE_URL = f"oracle+oracledb://{DB_USER}:{DB_PASSWORD}@{DB_DSN}"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    pool_pre_ping=True,   # Tests the connection before handing it to the mobile app
+    pool_recycle=3600,    # Recycles connections before Oracle/Firewall kills them
+    pool_size=10,         # Standard concurrent user baseline
+    max_overflow=20       # Allows extra connections to spin up during traffic spikes
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

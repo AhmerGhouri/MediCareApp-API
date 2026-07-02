@@ -303,6 +303,10 @@ def get_upcomingappointments(opat_id: str, db: Session = Depends(get_db), curren
                         M.MDEPT_ID = CN.CONSL_MDEPT_ID
                     AND
                         S.CONSL_STATUS <> 'C'
+                    AND
+                        S.APP_DATE >= TO_CHAR(SYSDATE , 'DD/MON/YYYY')
+                    AND 
+                        TO_CHAR(D.TIME_IN) >= TO_CHAR(SYSDATE, 'HH24:MI')
                     """)
     
     
