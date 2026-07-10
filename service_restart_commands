@@ -1,0 +1,349 @@
+Your Nginx configuration looks fine. Before setting up HTTPS, I'd recommend addressing the Oracle connection pooling issue separately, but we can definitely set up SSL now.
+
+The easiest and recommended approach on Ubuntu is Let's Encrypt + Certbot.
+
+Step 1: Verify your domain points to this server
+
+From your PC, run:
+
+nslookup api.medicarehospital.pk
+
+or
+
+dig api.medicarehospital.pk
+
+It should resolve to your server's public IP.
+
+Step 2: Open firewall ports
+
+If you're using UFW:
+
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw reload
+
+Check:
+
+sudo ufw status
+
+You should see:
+
+80/tcp
+443/tcp
+Step 3: Install Certbot
+sudo apt update
+sudo apt install certbot python3-certbot-nginx -y
+
+Verify:
+
+certbot --version
+Step 4: Verify Nginx configuration
+sudo nginx -t
+
+You should see:
+
+syntax is ok
+test is successful
+Step 5: Reload Nginx
+sudo systemctl reload nginx
+Step 6: Obtain the SSL certificate
+
+Run:
+
+sudo certbot --nginx -d api.medicarehospital.pk
+
+Certbot will ask:
+
+Enter email:
+
+Enter your email.
+
+Then:
+
+Agree to Terms?
+
+Choose:
+
+Y
+
+Then:
+
+Share email?
+
+Choose Yes or No.
+
+Step 7: Redirect HTTP to HTTPS
+
+Certbot will ask:
+
+1: No Redirect
+2: Redirect
+
+Choose:
+
+2
+
+This automatically redirects:
+
+http://api.medicarehospital.pk
+
+to
+
+https://api.medicarehospital.pk
+Step 8: Verify
+
+Open:
+
+https://api.medicarehospital.pk/docs
+
+You should see the Swagger UI with a padlock in the browser.
+
+Step 9: Verify certificate renewal
+
+Check the renewal timer:
+
+systemctl status certbot.timer
+
+You should see:
+
+Active: active (waiting)
+
+Test renewal:
+
+sudo certbot renew --dry-run
+
+You should get:
+
+Congratulations, all simulated renewals succeeded.
+What Certbot will do
+
+Your current Nginx configuration:
+
+server {
+    listen 80;
+    server_name api.medicarehospital.pk;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+    }
+}
+
+will be updated automatically to something like:
+
+server {
+    listen 443 ssl http2;
+    server_name api.medicarehospital.pk;
+
+    ssl_certificate /etc/letsencrypt/live/api.medicarehospital.pk/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.medicarehospital.pk/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+    }
+}
+
+server {
+    listen 80;
+    server_name api.medicarehospital.pk;
+    return 301 https://$host$request_uri;
+}
+
+You normally don't need to edit this manually.
+
+Before we start
+
+Please confirm these two points:
+
+Is api.medicarehospital.pk already publicly accessible over HTTP? Can you open http://api.medicarehospital.pk/docs from a browser outside your server?
+Where is your server hosted? (For example: DigitalOcean, AWS EC2, Azure, Google Cloud, Contabo, a local VPS, etc.)
+
+These matter because Let's Encrypt needs to reach your server over port 80 to issue the certificate, and some hosting providers require firewall or security group changes.
+
+1). Is api.medicarehospital.pk already publicly accessible over HTTP? Can you open http://api.medicarehospital.pk/docs from a browser outside your server?
+     Yes api.medicarehospital.pk already publicly accessible
+
+2). Where is your server hosted? (For example: DigitalOcean, AWS EC2, Azure, Google Cloud, Contabo, a local VPS, etc.)
+
+     A local hospital VPS server
+
+Perfect. Since:
+
+✅ http://api.medicarehospital.pk/docs is already accessible from the internet.
+✅ You're using Ubuntu 22.04 with Nginx.
+✅ Your domain points to your server.
+✅ The server is a local hospital VPS.
+
+You can use Let's Encrypt. It is free and renews automatically.
+
+Step 1: Backup your Nginx configuration
+sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default.bak
+
+If your configuration is in another file, back up that file instead:
+
+sudo ls /etc/nginx/sites-available/
+Step 2: Install Certbot
+sudo apt update
+sudo apt install certbot python3-certbot-nginx -y
+
+Verify:
+
+certbot --version
+Step 3: Test Nginx
+sudo nginx -t
+
+You should see:
+
+syntax is ok
+test is successful
+Step 4: Reload Nginx
+sudo systemctl reload nginx
+Step 5: Request the SSL certificate
+
+Run:
+
+sudo certbot --nginx -d api.medicarehospital.pk
+
+You'll be asked:
+
+Email
+Enter email address:
+
+Enter your email.
+
+Terms of Service
+(Y)es/(N)o
+
+Type:
+
+Y
+Share email
+(Y)es/(N)o
+
+Your choice.
+
+Redirect HTTP to HTTPS
+
+Choose:
+
+2
+
+This automatically redirects all HTTP traffic to HTTPS.
+
+Step 6: Test
+
+Open
+
+https://api.medicarehospital.pk/docs
+
+You should see the Swagger UI with a secure (padlock) connection.
+
+Step 7: Verify renewal
+
+Check the timer:
+
+systemctl status certbot.timer
+
+Test renewal:
+
+sudo certbot renew --dry-run
+
+You should see:
+
+Congratulations, all simulated renewals succeeded.
+Step 8: Update your React Native app
+
+Change your API URL from:
+
+http://api.medicarehospital.pk
+
+to
+
+https://api.medicarehospital.pk
+
+If you're using Axios:
+
+const api = axios.create({
+  baseURL: "https://api.medicarehospital.pk",
+});
+If Certbot fails
+
+The most common causes are:
+
+Port 80 isn't reachable from the internet.
+Another service is using port 80.
+The domain doesn't point to your server.
+
+You can check that Nginx is listening on both ports with:
+
+sudo ss -tlnp | grep nginx
+
+Expected output:
+
+0.0.0.0:80
+0.0.0.0:443
+
+(Port 443 will appear after the certificate is installed.)
+
+One recommendation before enabling HTTPS
+
+I recommend resolving the Oracle connection issue as well. The recurring DPY-4011 / ORA-03113 errors are unrelated to HTTPS and can still cause intermittent failures even after SSL is enabled.
+
+After your SSL is working, I can help you:
+
+Configure SQLAlchemy with pool_pre_ping=True and pool_recycle.
+Tune Gunicorn workers and timeouts.
+Add a /health endpoint for monitoring.
+Enable HTTP/2, stronger TLS settings, and security headers (HSTS, X-Frame-Options, etc.) to make your API production-ready.
+can i buy the SSL first?
+
+Yes, you can buy an SSL certificate, but you don't need to for your setup.
+
+For a public API like api.medicarehospital.pk, Let's Encrypt provides a free, trusted SSL certificate that is accepted by:
+
+✅ Android
+✅ iOS
+✅ React Native
+✅ Chrome
+✅ Firefox
+✅ Edge
+✅ Safari
+
+It offers the same level of encryption (TLS) as many paid Domain Validation (DV) certificates.
+
+When should you buy an SSL certificate?
+
+A paid certificate may make sense if you specifically need:
+
+An Organization Validation (OV) certificate, which verifies your organization.
+An Extended Validation (EV) certificate, which involves a more extensive verification process.
+Support from a commercial certificate authority.
+A certificate that meets a specific organizational or regulatory requirement.
+
+For most websites and APIs, including FastAPI backends serving mobile apps, a Let's Encrypt certificate is sufficient.
+
+My recommendation
+
+For your hospital API:
+
+Start with Let's Encrypt. It's free, secure, and renews automatically every 90 days.
+If your hospital's IT department or compliance policy later requires a paid OV or EV certificate, you can replace the Let's Encrypt certificate without changing your FastAPI application.
+If you decide to buy one
+
+You can purchase an SSL certificate from providers such as:
+
+DigiCert
+Sectigo
+GlobalSign
+GoDaddy
+SSL.com
+
+The general process is:
+
+Purchase the certificate.
+Generate a CSR (Certificate Signing Request) on your server.
+Complete the provider's validation process.
+Download the issued certificate.
+Configure Nginx to use the certificate and private key.
+Reload Nginx.
+
+If you tell me where your domain is registered (for example, GoDaddy, Namecheap, Cloudflare, etc.), I can also advise whether there are any provider-specific considerations.

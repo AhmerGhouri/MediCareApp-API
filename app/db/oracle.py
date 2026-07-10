@@ -5,14 +5,15 @@ import os
 from dotenv import load_dotenv
 
 
+
 # Oracle Thin mode setup (no Oracle Client required)
 # oracledb.version = "8.3.0" 
 
 load_dotenv()
 
 try:
-    # oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_23_26")
-    oracledb.init_oracle_client(lib_dir=r"C:\\instantclient_23_0")
+    oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_23_26")
+    # oracledb.init_oracle_client(lib_dir=r"C:\\instantclient_23_0")
     
     print("Thick mode initialized.")
 except Exception as err:
@@ -26,13 +27,16 @@ DB_DSN = os.getenv("DB_DSN") # e.g., localhost:1521/XEPDB1
 # SQLAlchemy Oracle Connection String
 SQLALCHEMY_DATABASE_URL = f"oracle+oracledb://{DB_USER}:{DB_PASSWORD}@{DB_DSN}"
 
+
 # engine = create_engine(SQLALCHEMY_DATABASE_URL)
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_pre_ping=True,   # Tests the connection before handing it to the mobile app
-    pool_recycle=3600,    # Recycles connections before Oracle/Firewall kills them
-    pool_size=10,         # Standard concurrent user baseline
-    max_overflow=20       # Allows extra connections to spin up during traffic spikes
+    pool_recycle=300,    # Drop to 300s (5 mins) to cycle connections before they go stale overnight
+    pool_size=20,         # Standard concurrent user baseline
+    max_overflow=30,
+    echo_pool="debug",
+    pool_use_lifo=True
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
