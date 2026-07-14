@@ -4,7 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.db.oracle import get_db
 from app.models.models import AppUser, HospitalPatient, EligibleUser
-from app.models.schemas import RegisterRequest, LoginRequest, LoginResponse, CheckEligibilityRequest
+from app.models.schemas import RegisterRequest, LoginRequest, LoginResponse, CheckEligibilityRequest, ResetPassword
 from app.api.auth.auth import get_password_hash, verify_password, create_access_token
 
 router = APIRouter()
@@ -108,6 +108,46 @@ def check_eligibility(request: CheckEligibilityRequest, db: Session = Depends(ge
         "status": "new_user",
         # "name_on_record": result.pname, # Sending back the name is a nice UX touch
         "message": "Verification successful! Please complete your registration."
+    }
+    
+    
+    
+    
+@router.post("/reset-password")
+def reset_password(request: ResetPassword, db: Session = Depends(get_db)):
+    # 1. Check if the number exists in the hospital's authorized list
+    # is_eligible = db.query(EligibleUser).filter(EligibleUser.mob == request.mobile_number).first()
+    
+    query = text("""UPDATE aass.MMH_USERREGDATA 
+                    SET PASSWORD = :password
+                    WHERE MOB = :mobile_number
+    """)        
+    
+    # Execute update and analyze row effect
+    result = db.execute(query, {"mobile_number": request.mobile_number , "password" : request.password})
+    
+    try:
+        if result.rowcount == 0:
+            # If 0 rows are updated, the slot was either already taken or the details are invalid
+            db.rollback()
+            raise HTTPException(
+                status_code=409, 
+                detail="Your number is not registered in our hospital records. Please contact administration."
+            )
+        else:
+            db.commit()
+            
+    except HTTPException:
+        # Re-raise our custom 409 conflict exception cleanly without dropping into generic error handler
+        raise
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Database execution failed: {str(e)}")
+
+    return {
+        "status": "success", 
+        "message": "Password has been reset successfully."
     }
     
     

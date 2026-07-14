@@ -22,7 +22,6 @@ class MRNumberResponse(BaseModel):
     gender: str
     dob: date
     
-
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -30,6 +29,10 @@ class LoginResponse(BaseModel):
     
 class CheckEligibilityRequest(BaseModel):
     mobile_number: str
+
+class ResetPassword(BaseModel):
+    mobile_number: str
+    password: str
     
     
 class AppointmentBooking(BaseModel):
