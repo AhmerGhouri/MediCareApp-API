@@ -3,10 +3,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 from dotenv import load_dotenv
+import sqlalchemy
+import oracledb
 
 
 # Oracle Thin mode setup (no Oracle Client required)
 # oracledb.version = "8.3.0" 
+
+print(sqlalchemy.__version__)
+print(oracledb.__version__)
 
 load_dotenv()
 

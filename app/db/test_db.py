@@ -7,7 +7,7 @@ load_dotenv()
 # DEBUG: Let's see what is being loaded
 user = os.getenv("DB_USER")
 dsn = os.getenv("DB_DSN")
-pw = os.getenv("DB_PASSWORD")
+pw = os.getenv("DB_PASS")
 
 print(f"--- Environment Check ---")
 print(f"DB_USER: {user}")
@@ -22,7 +22,7 @@ else:
     try:
 
         # oracledb.init_oracle_client(lib_dir=r"/opt/oracle/instantclient_23_26")
-        oracledb.init_oracle_client(lib_dir=r"C:\oracle\instantclient_21_12")
+        oracledb.init_oracle_client(lib_dir=r"C:\\instantclient_23_0")
         
         conn = oracledb.connect(user=user, password=pw, dsn=dsn)
         print("Connected successfully!")

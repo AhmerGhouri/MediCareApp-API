@@ -36,10 +36,10 @@ def get_lab_reports(opat_id: str, db: Session = Depends(get_db), current_user: A
                         O.OPAT_PNAME,
                         O.OPAT_PHONE
                     FROM 
-                        LTESTM_T M, 
-                        LTESTD_T D, 
-                        LTEST_T L, 
-                        OPAT_T O
+                        aass.LTESTM_T M, 
+                        aass.LTESTD_T D, 
+                        aass.LTEST_T L, 
+                        aass.OPAT_T O
                     WHERE 
                         M.LTESTM_OPAT_ID = O.OPAT_ID
                     AND 
@@ -109,7 +109,7 @@ def get_radiology_reports(opat_id: str, db: Session = Depends(get_db), current_u
                         T.BILLM_SYS_DATE REQ_DATE,
                         T.REPTM_ENTRY_DATE REPORTING_DATE
                     FROM 
-                        RADIOLOGY_REPT_VIEW T
+                        aass.RADIOLOGY_REPT_VIEW T
                     WHERE 
                         (SUBSTR(T.reptm_no, 1, 2)) = (SUBSTR(T.reptm_no, 1, 2))
                     AND 
@@ -168,10 +168,10 @@ def get_inpatient_history(opat_id: str, db: Session = Depends(get_db), current_u
                         I.IPAT_MDEPT_ID,
                         I.IPAT_SPOUSE_PHONE 
                     FROM 
-                        IPAT_T I , 
-                        DIAG_T D , 
-                        CONSL_T C,
-                        OPAT_T O
+                        aass.IPAT_T I , 
+                        aass.DIAG_T D , 
+                        aass.CONSL_T C,
+                        aass.OPAT_T O
                     WHERE 
                         I.IPAT_OPAT_ID  = :opat_id
                     AND 
@@ -214,9 +214,9 @@ def get_consultation_history(opat_id: str, db: Session = Depends(get_db), curren
         
            
     check_query = text("""
-        SELECT OPAT_ID FROM OPAT_T WHERE OPAT_ID = :opat_id AND OPAT_PHONE = :mobile_number
+        SELECT OPAT_ID FROM aass.OPAT_T WHERE OPAT_ID = :opat_id AND OPAT_PHONE = :mobile_number
         UNION
-        SELECT BILLM_OPAT_ID FROM BILLM_T WHERE BILLM_OPAT_ID = :opat_id AND BILLM_CELL_NO = :mobile_number
+        SELECT BILLM_OPAT_ID FROM aass.BILLM_T WHERE BILLM_OPAT_ID = :opat_id AND BILLM_CELL_NO = :mobile_number
     """)
     
     access_allowed = db.execute(check_query, {"opat_id": opat_id, "mobile_number": current_user.mob}).fetchone()
@@ -239,8 +239,8 @@ def get_consultation_history(opat_id: str, db: Session = Depends(get_db), curren
                         TRIM(M.BILLM_MDEPT_ID) AS BILLM_MDEPT_ID , 
                         M.BILLM_AMT
                     FROM 
-                        BILLM_T M , 
-                        CONSL_T C
+                        aass.BILLM_T M , 
+                        aass.CONSL_T C
                     WHERE 
                         M.BILLM_OPAT_ID = :opat_id
                     AND 
@@ -289,10 +289,10 @@ def get_upcomingappointments(opat_id: str, db: Session = Depends(get_db), curren
                         TRIM(D.PAT_CELL) AS PAT_CELL,
                         TRIM(D.PAT_TITLE||' '|| D.PAT_NAME) AS PAT_NAME
                     FROM
-                        CONSL_APP_T S,
-                        CONSL_APPD_T D,
-                        CONSL_T CN,
-                        MDEPT_T M
+                        aass.CONSL_APP_T S,
+                        aass.CONSL_APPD_T D,
+                        aass.CONSL_T CN,
+                        aass.MDEPT_T M
                     WHERE
                         D.TRAN_ID = S.CONSL_TRAN_ID
                     AND
@@ -361,9 +361,9 @@ def get_todaysclinic(db: Session = Depends(get_db)):
                         TO_CHAR(SYSDATE, 'YYYY-MM-DD') AS CURRENT_DATE_VAL,
                         UPPER(TO_CHAR(SYSDATE, 'Day')) AS CURRENT_DAY_VAL
                     FROM 
-                        TIMING_T E,
-                        CONSL_T C,
-                        MDEPT_T D
+                        aass.TIMING_T E,
+                        aass.CONSL_T C,
+                        aass.MDEPT_T D
                     WHERE 
                         E.TIME_CONSL_DEPT = D.MDEPT_ID
                     AND 
@@ -432,9 +432,9 @@ def get_consultants(db: Session = Depends(get_db)):
                         C.CONSL_IMG,
                         C.CONSL_STATUS
                     FROM 
-                        CONSL_T C, 
-                        TIMING_T A,
-                        MDEPT_T D
+                        aass.CONSL_T C, 
+                        aass.TIMING_T A,
+                        aass.MDEPT_T D
                     WHERE 
                         C.CONSL_STATUS = 1
                     AND 
@@ -509,10 +509,10 @@ def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session
                         E.TIME_CONSL_DEPT,
                         TRIM(D.MDEPT_DESC) MDEPT_DESC
                     FROM 
-                        TIMING_T E,
-                        CONSL_T C,
-                        MDEPT_T D,
-                        CONSL_APPD_T A
+                        aass.TIMING_T E,
+                        aass.CONSL_T C,
+                        aass.MDEPT_T D,
+                        aass.CONSL_APPD_T A
                     WHERE
                         E.TIME_CONSL_DEPT = D.MDEPT_ID
                     AND 
@@ -612,7 +612,7 @@ def create_appointment(
 
     # STEP 2: SECURITY VERIFICATION
     # Ensure the logged-in mobile user can only book for their own profile MR number
-    check_query = text("SELECT 1 FROM OPAT_T WHERE OPAT_ID = :opat_id AND OPAT_PHONE = :mobile_number")
+    check_query = text("SELECT 1 FROM aass.OPAT_T WHERE OPAT_ID = :opat_id AND OPAT_PHONE = :mobile_number")
     access_allowed = db.execute(check_query, {"opat_id": opat_id, "mobile_number": current_user.mob}).fetchone()
     
     if not access_allowed:
@@ -621,7 +621,7 @@ def create_appointment(
     # STEP 3: QUERY DEFINITIONS
     # Parent Header: Tracks the overall transaction record
     query_parent = text("""
-        INSERT INTO CONSL_APP_T (
+        INSERT INTO aass.CONSL_APP_T (
             CONSL_TRAN_ID, CONSL_ID, APP_DATE, APP_FR_TIME, APP_TO_TIME, CONSL_DAYS
         ) VALUES (
             :tran_id, :consl_id, :appoint_date, :from_time, :to_time, :appointment_day
@@ -630,7 +630,7 @@ def create_appointment(
     
     # Child Slot: UPDATES the pre-existing unbooked slot atomically
     query_child = text("""
-        UPDATE CONSL_APPD_T 
+        UPDATE aass.CONSL_APPD_T 
         SET 
             PAT_MR = :opat_id,
             TRAN_ID = :tran_id,
@@ -655,7 +655,7 @@ def create_appointment(
     while attempt < max_attempts:
         try:
             # Fetch maximum ID safely for the parent table record identifier
-            current_max = db.execute(text("SELECT COALESCE(MAX(CONSL_TRAN_ID), 0) FROM CONSL_APP_T")).scalar()
+            current_max = db.execute(text("SELECT COALESCE(MAX(CONSL_TRAN_ID), 0) FROM aass.CONSL_APP_T")).scalar()
             generated_trans_id = current_max + 1
             
             parameters = {

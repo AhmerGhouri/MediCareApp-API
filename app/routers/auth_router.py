@@ -76,11 +76,11 @@ def check_eligibility(request: CheckEligibilityRequest, db: Session = Depends(ge
     # 1. Check if the number exists in the hospital's authorized list
     # is_eligible = db.query(EligibleUser).filter(EligibleUser.mob == request.mobile_number).first()
     
-    query = text("""SELECT OPAT_PHONE FROM OPAT_T WHERE OPAT_PHONE = :mobile_number
+    query = text("""SELECT OPAT_PHONE FROM aass.OPAT_T WHERE OPAT_PHONE = :mobile_number
                 UNION
-                SELECT IPAT_SPOUSE_PHONE FROM IPAT_T WHERE IPAT_SPOUSE_PHONE = :mobile_number
+                SELECT IPAT_SPOUSE_PHONE FROM aass.IPAT_T WHERE IPAT_SPOUSE_PHONE = :mobile_number
                 UNION
-                SELECT BILLM_CELL_NO FROM BILLM_T WHERE BILLM_CELL_NO = :mobile_number
+                SELECT BILLM_CELL_NO FROM aass.BILLM_T WHERE BILLM_CELL_NO = :mobile_number
 
     """)        
     result = db.execute(query, {"mobile_number": request.mobile_number}).fetchone()

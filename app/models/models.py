@@ -3,7 +3,8 @@ from app.db.oracle import Base
 
 # 1. The App User (For login credentials)
 class AppUser(Base):
-    __tablename__ = "MMH_USERREGDATA" # You will need to create this table in Oracle
+    __tablename__ = "MMH_USERREGDATA"
+    __table_args__ = {"schema": "aass"} 
     
     autoid = Column(Integer, primary_key=True, index=True)
     # mob = Column(String(15), unique=True, index=True)
@@ -20,7 +21,8 @@ class AppUser(Base):
     datafrom = Column(String)
     
 class HospitalPatient(Base):
-    __tablename__ = "OPAT_T" # Replace with actual table name
+    __tablename__ = "OPAT_T"
+    __table_args__ = {"schema": "aass"} 
     
     opat_id = Column(String(50), primary_key=True, index=True)
     opat_phone = Column(String(15), index=True)
@@ -31,7 +33,7 @@ class HospitalPatient(Base):
     
 class EligibleUser(Base):
     __tablename__ = "MMH_USERREGDATA" # The pre-authorized list
-    __table_args__ = {'extend_existing': True} # This allows us to reuse the same table for both AppUser and EligibleUser
+    __table_args__ = {'extend_existing': True , "schema" : "aass"} # This allows us to reuse the same table for both AppUser and EligibleUser
     
     mob = Column(String, primary_key=True)
     pname = Column(String)
