@@ -21,8 +21,12 @@ else:
     # ... rest of your connection code ...
     try:
 
+
         # oracledb.init_oracle_client(lib_dir=r"/opt/oracle/instantclient_23_26")
         oracledb.init_oracle_client(lib_dir=r"C:\\instantclient_23_0")
+
+        # oracledb.init_oracle_client(lib_dir=r"/opt/oracle/instantclient_23_26")
+        # oracledb.init_oracle_client(lib_dir=r"C:\oracle\instantclient_21_12")
         
         conn = oracledb.connect(user=user, password=pw, dsn=dsn)
         print("Connected successfully!")
