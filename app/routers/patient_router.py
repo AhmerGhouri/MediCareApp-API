@@ -177,6 +177,8 @@ def get_inpatient_history(opat_id: str, db: Session = Depends(get_db), current_u
                     WHERE 
                         I.IPAT_OPAT_ID  = :opat_id
                     AND 
+                        I.IPAT_OPAT_ID = O.OPAT_ID
+                    AND
                         I.IPAT_CONSL_ID = C.CONSL_ID
                     AND 
                         I.IPAT_A_DIAG_ID = D.DIAG_ID 
