@@ -94,17 +94,17 @@ def get_radiology_reports(opat_id: str, db: Session = Depends(get_db), current_u
                         T.REPTM_PAT_ID,
                         T.REPTM_OPAT_ID,
                         T.PAT_NAME,
-                        (SELECT O.OPAT_PHONE FROM OPAT_T O WHERE LTRIM(RTRIM(O.OPAT_ID)) = LTRIM(RTRIM(REPTM_OPAT_ID))) PHONE_NO,
+                        (SELECT O.OPAT_PHONE FROM aass.OPAT_T O WHERE LTRIM(RTRIM(O.OPAT_ID)) = LTRIM(RTRIM(REPTM_OPAT_ID))) PHONE_NO,
                         T.PANEL_NAME,
                         T.BILLM_REF_CONSL_ID,
-                        TRIM((SELECT C.CONSL_DESC FROM CONSL_T C WHERE LTRIM(RTRIM(C.CONSL_ID)) = LTRIM(RTRIM(T.BILLM_REF_CONSL_ID)))) REPORT_REF_BY_CONSL,
+                        TRIM((SELECT C.CONSL_DESC FROM aass.CONSL_T C WHERE LTRIM(RTRIM(C.CONSL_ID)) = LTRIM(RTRIM(T.BILLM_REF_CONSL_ID)))) REPORT_REF_BY_CONSL,
                         T.BILLM_SYS_DATE,
                         DECODE(T.BILLM_SEX,'M','MALE','F','FEMALE')billm_gender,
                         T.REPTM_NO,
                         REPTM_CONSL_ID REPORT_CREATED_BY_CONSL_ID,
-                        TRIM((SELECT C.CONSL_DESC FROM CONSL_T C WHERE LTRIM(RTRIM(C.CONSL_ID)) = LTRIM(RTRIM(REPTM_CONSL_ID)))) REPORT_CREATED_BY_CONSL,
-                        (SELECT C.CONSL_DEGR FROM CONSL_T C WHERE LTRIM(RTRIM(C.CONSL_ID)) = LTRIM(RTRIM(REPTM_CONSL_ID))) CONSL_DEGR,
-                        (SELECT A.spec_desc FROM CONSL_T C, spec_t A WHERE C.CONSL_SPEC_ID = A.SPEC_ID AND LTRIM(RTRIM(C.CONSL_ID)) = LTRIM(RTRIM(REPTM_CONSL_ID))) CONSL_DESIG,
+                        TRIM((SELECT C.CONSL_DESC FROM aass.CONSL_T C WHERE LTRIM(RTRIM(C.CONSL_ID)) = LTRIM(RTRIM(REPTM_CONSL_ID)))) REPORT_CREATED_BY_CONSL,
+                        (SELECT C.CONSL_DEGR FROM aass.CONSL_T C WHERE LTRIM(RTRIM(C.CONSL_ID)) = LTRIM(RTRIM(REPTM_CONSL_ID))) CONSL_DEGR,
+                        (SELECT A.spec_desc FROM aass.CONSL_T C, aass.spec_t A WHERE C.CONSL_SPEC_ID = A.SPEC_ID AND LTRIM(RTRIM(C.CONSL_ID)) = LTRIM(RTRIM(REPTM_CONSL_ID))) CONSL_DESIG,
                         DECODE(T.reptm_pat_type,'I','In-Patient','O','Out_patient','W','Walk-In','M','Miscellenous',T.reptm_pat_type) REPTM_PAT_TYPE,
                         DECODE(T.reptm_status,'1','Not Approved','2','Cancel','3','Approved',T.reptm_status) REPTM_STATUS,
                         --T.REPTD_STATUS,
@@ -117,7 +117,7 @@ def get_radiology_reports(opat_id: str, db: Session = Depends(get_db), current_u
                     AND 
                         T.REPTM_OPAT_ID = :opat_id
                     AND
-                        (SELECT O.OPAT_PHONE FROM OPAT_T O WHERE O.OPAT_ID = T.REPTM_OPAT_ID) = :mobile_number
+                        (SELECT O.OPAT_PHONE FROM aass.OPAT_T O WHERE O.OPAT_ID = T.REPTM_OPAT_ID) = :mobile_number
                      """)
     
     
