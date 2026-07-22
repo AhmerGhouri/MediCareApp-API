@@ -1,6 +1,6 @@
 # app/schemas.py
 from datetime import date
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import List, Optional
 
 class RegisterRequest(BaseModel):
@@ -34,7 +34,6 @@ class ResetPassword(BaseModel):
     mobile_number: str
     password: str
     
-    
 class AppointmentBooking(BaseModel):
     tran_id : int
     consl_id : str
@@ -47,6 +46,16 @@ class AppointmentBooking(BaseModel):
     opat_id : str
     patient_name : str
     # appoint_confirm_date : str    
+    
+class OTPRequest(BaseModel):
+    email: EmailStr
+    mobile: str
+
+class PasswordResetConfirm(BaseModel):
+    mobile: str
+    email: EmailStr
+    otp_code: str
+    new_password: str
     
 # class ConsultantOut(BaseModel):
     

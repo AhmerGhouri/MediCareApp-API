@@ -24,6 +24,7 @@ def get_lab_reports(opat_id: str, db: Session = Depends(get_db), current_user: A
     
     query = text("""SELECT 
                         M.LTESTM_ID,
+                        D.LTESTD_UNIQUE_ID,
                         M.LTESTM_SYS_DATE,
                         M.LTESTM_OPAT_ID,
                         D.LTESTD_LTESTM_ID, 
@@ -68,6 +69,7 @@ def get_lab_reports(opat_id: str, db: Session = Depends(get_db), current_user: A
         "mobile" : first_row["opat_phone"],
         "reports" : [
             {
+                "id" : row["ltestd_unique_id"],
                 "test_id": row["ltest_id"],
                 "testm_id": row["ltestd_ltestm_id"],
                 "testd_id": row["ltestd_ltest_id"],

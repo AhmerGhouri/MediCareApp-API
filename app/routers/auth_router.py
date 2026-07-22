@@ -1,11 +1,15 @@
 # app/routers/auth_router.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from multiprocessing import get_context
+import random
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.db.oracle import get_db
 from app.models.models import AppUser, HospitalPatient, EligibleUser
-from app.models.schemas import RegisterRequest, LoginRequest, LoginResponse, CheckEligibilityRequest, ResetPassword
+from app.models.schemas import OTPRequest, PasswordResetConfirm, RegisterRequest, LoginRequest, LoginResponse, CheckEligibilityRequest, ResetPassword
 from app.api.auth.auth import get_password_hash, verify_password, create_access_token
+from app.routers.emailservice import send_otp_email
+from app.logger import logger
 
 router = APIRouter()
 
@@ -149,6 +153,88 @@ def reset_password(request: ResetPassword, db: Session = Depends(get_db)):
         "status": "success", 
         "message": "Password has been reset successfully."
     }
+    
+    
+    
+@router.post("/request-otp")
+def request_otp(payload: OTPRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    
+    # 1. Verify user exists 
+    # (Replace APP_USERS_T with your actual users table)
+    check_user = text("SELECT 1 FROM MMH_USERREGDATA WHERE mob = :mobile")
+    if not db.execute(check_user, {"mobile" : payload.mobile}).fetchone():
+        logger.warning(f"OTP requested for unregistered email: {payload.mobile}")
+        return {"status": "success", "message": "If that email is registered, an OTP has been sent."}
+
+    # 2. Generate a secure 6-digit code
+    otp_code = str(random.randint(100000, 999999))
+    
+    # 3. Store in database with a 10-minute Oracle SYSDATE expiration
+    merge_query = text("""
+       MERGE INTO USER_PASS_OTP_T tgt
+        USING (SELECT :mobile AS MOBILE_NO, :email as EMAIL, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.MOBILE_NO = src.MOBILE_NO)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.OTP_EXPIRY = SYSTIMESTAMP + INTERVAL '1' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (MOBILE_NO ,EMAIL, OTP_CODE, OTP_EXPIRY) 
+            VALUES (src.MOBILE_NO , src.EMAIL, src.OTP_CODE, SYSTIMESTAMP + INTERVAL '1' MINUTE)
+        """)
+    
+    try:
+        db.execute(merge_query, {"email" : payload.email ,"mobile": payload.mobile, "otp": otp_code})
+        db.commit()
+        logger.info(f"OTP generated and stored for: {payload.mobile}")
+        
+        # 4. Offload the SMTP request to the background so the API returns instantly
+        # background_tasks.add_task(send_otp_email, payload.email ,otp_code)
+        send_otp_email(payload.email, otp_code)
+        return {"status": "success", "message": "Email sent successfully!"}
+        
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"DB Error while generating OTP for {payload.email}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
+    # return {"status": "success", "message": "If that email is registered, an OTP has been sent." ,"otp" : otp_code}
+
+
+@router.post("/verify-otp-and-reset")
+def verify_and_reset(payload: PasswordResetConfirm, db: Session = Depends(get_db)):
+    
+    # 1. Verify OTP validity and expiration directly via Oracle SYSDATE
+    verify_query = text("""
+        SELECT 1 FROM USER_PASS_OTP_T 
+        WHERE MOBILE_NO = :mobile 
+          AND OTP_CODE = :otp 
+          AND OTP_EXPIRY > SYSTIMESTAMP
+    """)
+    
+    is_valid = db.execute(verify_query, {"mobile": payload.mobile, "otp": payload.otp_code}).fetchone()
+    
+    if not is_valid:
+        logger.warning(f"Failed OTP reset attempt for: {payload.email}")
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP.")
+
+    # 2. Hash the newly provided password
+    # hashed_password = get_context.hash(payload.new_password)
+
+    # 3. Update the password and clear the used OTP atomically
+    update_pwd_query = text("UPDATE MMH_USERREGDATA SET PASSWORD = :password WHERE MOB = :mobile")
+    delete_otp_query = text("DELETE FROM USER_PASS_OTP_T WHERE MOBILE_NO = :mobile")
+    
+    try:
+        db.execute(update_pwd_query, {"password": payload.new_password , "mobile": payload.mobile})
+        db.execute(delete_otp_query, {"mobile": payload.mobile})
+        db.commit()
+        logger.info(f"Password successfully reset for: {payload.mobile}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"DB Error during password reset for {payload.mobile}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return {"status": "success", "message": "Password reset successfully. You can now log in."}
     
     
     

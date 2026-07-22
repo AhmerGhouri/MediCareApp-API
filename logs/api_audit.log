@@ -1,0 +1,185 @@
+2026-07-20 15:05:10,452 - WARNING - [auth_router.py:166] - OTP requested for unregistered email: 03462720014
+2026-07-20 15:06:16,910 - ERROR - [auth_router.py:194] - DB Error while generating OTP for ahmerghouri@gmail.com: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: 
+        MERGE INTO USER_OTP_T tgt
+        USING (SELECT :email AS EMAIL, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.EMAIL = src.EMAIL)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.EXPIRES_AT = SYSDATE + INTERVAL '10' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (EMAIL, OTP_CODE, EXPIRES_AT) 
+            VALUES (src.EMAIL, src.OTP_CODE, SYSDATE + INTERVAL '10' MINUTE)
+    ]
+[parameters: {'email': '03462720014', 'otp': '854207'}]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-07-20 15:06:23,163 - ERROR - [auth_router.py:194] - DB Error while generating OTP for ahmerghouri@gmail.com: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: 
+        MERGE INTO USER_OTP_T tgt
+        USING (SELECT :email AS EMAIL, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.EMAIL = src.EMAIL)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.EXPIRES_AT = SYSDATE + INTERVAL '10' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (EMAIL, OTP_CODE, EXPIRES_AT) 
+            VALUES (src.EMAIL, src.OTP_CODE, SYSDATE + INTERVAL '10' MINUTE)
+    ]
+[parameters: {'email': '03462720014', 'otp': '660689'}]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-07-20 15:08:00,719 - ERROR - [auth_router.py:194] - DB Error while generating OTP for ahmerghouri@gmail.com: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: 
+        MERGE INTO USER_OTP_T tgt
+        USING (SELECT :email AS EMAIL, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.EMAIL = src.EMAIL)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.EXPIRES_AT = SYSDATE + INTERVAL '10' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (EMAIL, OTP_CODE, EXPIRES_AT) 
+            VALUES (src.EMAIL, src.OTP_CODE, SYSDATE + INTERVAL '10' MINUTE)
+    ]
+[parameters: {'email': '03462720014', 'otp': '302094'}]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-07-20 15:09:55,069 - ERROR - [auth_router.py:194] - DB Error while generating OTP for ahmerghouri@gmail.com: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: 
+        MERGE INTO USER_OTP_T tgt
+        USING (SELECT :email AS EMAIL, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.EMAIL = src.EMAIL)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.EXPIRES_AT = SYSDATE + INTERVAL '10' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (EMAIL, OTP_CODE, EXPIRES_AT) 
+            VALUES (src.EMAIL, src.OTP_CODE, SYSDATE + INTERVAL '10' MINUTE)
+    ]
+[parameters: {'email': 'ahmerghouri@gmail.com', 'otp': '902355'}]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-07-20 15:10:20,833 - ERROR - [auth_router.py:194] - DB Error while generating OTP for zohaib@jmc.edu.pk: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: 
+        MERGE INTO USER_OTP_T tgt
+        USING (SELECT :email AS EMAIL, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.EMAIL = src.EMAIL)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.EXPIRES_AT = SYSDATE + INTERVAL '10' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (EMAIL, OTP_CODE, EXPIRES_AT) 
+            VALUES (src.EMAIL, src.OTP_CODE, SYSDATE + INTERVAL '10' MINUTE)
+    ]
+[parameters: {'email': 'zohaib@jmc.edu.pk', 'otp': '358633'}]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-07-20 15:13:21,341 - ERROR - [auth_router.py:194] - DB Error while generating OTP for zohaib@jmc.edu.pk: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: 
+        MERGE INTO USER_OTP_T tgt
+        USING (SELECT :mobile AS Mobile, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.MOBILE_NO = src.Mobile)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.OTP_EXPIRY = SYSDATE + INTERVAL '10' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (MOBILE_NO ,EMAIL, OTP_CODE, OTP_EXPIRY) 
+            VALUES (src.MOBILE_NO ,src.EMAIL, src.OTP_CODE, SYSDATE + INTERVAL '10' MINUTE)
+    ]
+[parameters: {'mobile': '03462720014', 'otp': '745928'}]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-07-20 15:16:34,564 - ERROR - [auth_router.py:194] - DB Error while generating OTP for zohaib@jmc.edu.pk: (oracledb.exceptions.DatabaseError) ORA-00904: "SRC"."EMAIL": invalid identifier
+Help: https://docs.oracle.com/error-help/db/ora-00904/
+[SQL: 
+        MERGE INTO USER_PASS_OTP_T tgt
+        USING (SELECT :mobile AS Mobile, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.MOBILE_NO = src.Mobile)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.OTP_EXPIRY = SYSDATE + INTERVAL '10' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (MOBILE_NO ,EMAIL, OTP_CODE, OTP_EXPIRY) 
+            VALUES (src.MOBILE_NO , src.EMAIL, src.OTP_CODE, SYSDATE + INTERVAL '10' MINUTE)
+    ]
+[parameters: {'mobile': '03462720014', 'otp': '524191'}]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-07-20 15:19:23,840 - ERROR - [auth_router.py:194] - DB Error while generating OTP for zohaib@jmc.edu.pk: (oracledb.exceptions.DatabaseError) ORA-00904: "SRC"."EMAIL": invalid identifier
+Help: https://docs.oracle.com/error-help/db/ora-00904/
+[SQL: 
+        MERGE INTO USER_PASS_OTP_T tgt
+        USING (SELECT :mobile AS Mobile, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.MOBILE_NO = src.Mobile)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.OTP_EXPIRY = SYSDATE + INTERVAL '10' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (MOBILE_NO ,EMAIL, OTP_CODE, OTP_EXPIRY) 
+            VALUES (src.MOBILE_NO , src.EMAIL, src.OTP_CODE, SYSDATE + INTERVAL '10' MINUTE)
+    ]
+[parameters: {'mobile': '03462720014', 'otp': '368949'}]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-07-20 15:21:31,096 - ERROR - [auth_router.py:194] - DB Error while generating OTP for zohaib@jmc.edu.pk: (oracledb.exceptions.DatabaseError) ORA-00904: "SRC"."EMAIL": invalid identifier
+Help: https://docs.oracle.com/error-help/db/ora-00904/
+[SQL: 
+        MERGE INTO USER_PASS_OTP_T tgt
+        USING (SELECT :mobile AS Mobile, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.MOBILE_NO = src.Mobile)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.OTP_EXPIRY = SYSDATE + INTERVAL '10' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (MOBILE_NO ,EMAIL, OTP_CODE, OTP_EXPIRY) 
+            VALUES (src.MOBILE_NO , src.EMAIL, src.OTP_CODE, SYSDATE + INTERVAL '10' MINUTE)
+    ]
+[parameters: {'mobile': '03462720014', 'otp': '536269'}]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-07-20 15:31:52,646 - WARNING - [auth_router.py:166] - OTP requested for unregistered email: 03161122573
+2026-07-20 15:33:34,083 - WARNING - [auth_router.py:166] - OTP requested for unregistered email: 03161122573
+2026-07-20 15:48:10,812 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-20 15:48:19,164 - INFO - [emailservice.py:25] - OTP email successfully dispatched to zohaib@jmc.edu.pk
+2026-07-20 15:48:21,062 - WARNING - [auth_router.py:166] - OTP requested for unregistered email: 03161122573
+2026-07-20 15:48:24,014 - WARNING - [auth_router.py:166] - OTP requested for unregistered email: 03161122573
+2026-07-20 15:50:36,179 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-20 15:50:46,182 - INFO - [emailservice.py:25] - OTP email successfully dispatched to ahmerghouri6@gmail.com
+2026-07-20 15:54:45,777 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-20 15:54:48,200 - INFO - [emailservice.py:25] - OTP email successfully dispatched to ahmerghouri6@gmail.com
+2026-07-20 15:58:45,694 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-20 15:58:48,234 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmerghouri6@gmail.com
+2026-07-20 16:02:00,184 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-20 16:02:02,644 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmerghouri6@gmail.com
+2026-07-20 16:02:47,611 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-20 16:02:49,920 - INFO - [emailservice.py:49] - OTP email successfully dispatched to bilal24525sheikh@gmail.com
+2026-07-20 16:03:27,217 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-20 16:03:29,461 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmer.ghouri@jmc.edu.pk
+2026-07-20 16:05:14,123 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-20 16:05:16,418 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ums_coordinator@jmc.edu.pk
+2026-07-21 11:07:10,551 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-21 11:07:21,322 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmer.ghouri@jmc.edu.pk
+2026-07-21 11:08:48,527 - WARNING - [auth_router.py:216] - Failed OTP reset attempt for: ahmer.ghouri@jmc.edu.pk
+2026-07-21 11:10:11,313 - WARNING - [auth_router.py:216] - Failed OTP reset attempt for: ahmer.ghouri@jmc.edu.pk
+2026-07-21 11:49:47,150 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-21 11:49:49,983 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmer.ghouri@jmc.edu.pk
+2026-07-21 11:51:14,836 - WARNING - [auth_router.py:216] - Failed OTP reset attempt for: ahmer.ghouri@jmc.edu.pk
+2026-07-21 11:51:46,229 - WARNING - [auth_router.py:217] - Failed OTP reset attempt for: ahmer.ghouri@jmc.edu.pk
+2026-07-21 11:57:01,393 - INFO - [auth_router.py:231] - Password successfully reset for: 03462720014
+2026-07-21 11:57:41,401 - INFO - [auth_router.py:231] - Password successfully reset for: 03462720014
+2026-07-21 12:10:01,721 - ERROR - [auth_router.py:197] - DB Error while generating OTP for ahmer.ghouri@jmc.edu.pk: (oracledb.exceptions.DatabaseError) ORA-12899: value too large for column "AASS"."USER_PASS_OTP_T"."OTP_EXPIRY" (actual: 38, maximum: 20)
+Help: https://docs.oracle.com/error-help/db/ora-12899/
+[SQL: 
+       MERGE INTO USER_PASS_OTP_T tgt
+        USING (SELECT :mobile AS MOBILE_NO, :email as EMAIL, :otp AS OTP_CODE FROM DUAL) src
+        ON (tgt.MOBILE_NO = src.MOBILE_NO)
+        WHEN MATCHED THEN 
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.OTP_EXPIRY = SYSTIMESTAMP + INTERVAL '10' MINUTE
+        WHEN NOT MATCHED THEN 
+            INSERT (MOBILE_NO ,EMAIL, OTP_CODE, OTP_EXPIRY) 
+            VALUES (src.MOBILE_NO , src.EMAIL, src.OTP_CODE, SYSTIMESTAMP + INTERVAL '10' MINUTE)
+        ]
+[parameters: {'mobile': '03462720014', 'email': 'ahmer.ghouri@jmc.edu.pk', 'otp': '640277'}]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-07-21 12:14:16,785 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-21 12:14:19,696 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmer.ghouri@jmc.edu.pk
+2026-07-21 12:18:44,014 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-21 12:18:46,472 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmer.ghouri@jmc.edu.pk
+2026-07-21 12:19:31,615 - INFO - [auth_router.py:231] - Password successfully reset for: 03462720014
+2026-07-21 12:20:36,920 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-21 12:20:39,336 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmer.ghouri@jmc.edu.pk
+2026-07-21 12:20:56,396 - INFO - [auth_router.py:231] - Password successfully reset for: 03462720014
+2026-07-21 12:22:03,113 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-21 12:22:05,429 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmer.ghouri@jmc.edu.pk
+2026-07-21 12:24:43,223 - WARNING - [auth_router.py:217] - Failed OTP reset attempt for: ahmer.ghouri@jmc.edu.pk
+2026-07-21 12:25:33,453 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
+2026-07-21 12:25:35,735 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmer.ghouri@jmc.edu.pk
+2026-07-21 12:26:16,357 - INFO - [auth_router.py:231] - Password successfully reset for: 03462720014
