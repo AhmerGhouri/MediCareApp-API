@@ -98,7 +98,7 @@ def check_eligibility(request: CheckEligibilityRequest, db: Session = Depends(ge
     if already_registered:
         return {
             "eligible": True,
-            "status": "already_registered",
+            "status": "Already Registered",
             "message": "You already have an account. Please log in."
         }
 
