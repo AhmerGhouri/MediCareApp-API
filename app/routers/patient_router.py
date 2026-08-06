@@ -158,32 +158,31 @@ def get_inpatient_history(opat_id: str, db: Session = Depends(get_db), current_u
         
     
     query = text("""SELECT 
-                        I.IPAT_ID , 
-                        I.IPAT_OPAT_ID ,
-                        TRIM(O.OPAT_PNAME) OPAT_PNAME,
-                        I.IPAT_ADATE , 
-                        I.IPAT_DDATE , 
-                        I.IPAT_CONSL_ID , 
-                        TRIM(C.CONSL_DESC) AS CONSL_DESC , 
-                        I.IPAT_A_DIAG_ID , 
-                        TRIM(D.DIAG_DESC) AS DIAG_DESC , 
-                        I.IPAT_MDEPT_ID,
-                        I.IPAT_SPOUSE_PHONE 
+                    I.IPAT_ID , 
+                    I.IPAT_OPAT_ID ,
+                    TRIM(O.OPAT_PNAME) OPAT_PNAME,
+                    I.IPAT_ADATE , 
+                    I.IPAT_DDATE , 
+                    I.IPAT_CONSL_ID , 
+                    TRIM(C.CONSL_DESC) AS CONSL_DESC , 
+                    I.IPAT_A_DIAG_ID , 
+                    TRIM(D.DIAG_DESC) AS DIAG_DESC , 
+                    I.IPAT_MDEPT_ID,
+                    I.IPAT_SPOUSE_PHONE 
                     FROM 
-                        aass.IPAT_T I , 
-                        aass.DIAG_T D , 
-                        aass.CONSL_T C,
-                        aass.OPAT_T O
+                    aass.IPAT_T I , 
+                    aass.DIAG_T D , 
+                    aass.CONSL_T C,
+                    aass.OPAT_T O
                     WHERE 
-                        I.IPAT_OPAT_ID  = :opat_id
-                    AND 
-                        I.IPAT_OPAT_ID = O.OPAT_ID
+                    I.IPAT_OPAT_ID  = :opat_id
                     AND
-                        I.IPAT_CONSL_ID = C.CONSL_ID
+                    I.IPAT_CONSL_ID = C.CONSL_ID
                     AND 
-                        I.IPAT_A_DIAG_ID = D.DIAG_ID 
+                    I.IPAT_A_DIAG_ID = D.DIAG_ID 
                     AND
-                        (O.OPAT_PHONE = :mobile_number OR I.IPAT_SPOUSE_PHONE = :mobile_number)
+                    (O.OPAT_PHONE = :mobile_number OR I.IPAT_SPOUSE_PHONE = :mobile_number)
+                    AND I.IPAT_OPAT_ID = O.OPAT_ID
                     """)
     
     
