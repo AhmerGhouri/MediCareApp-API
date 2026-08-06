@@ -714,3 +714,186 @@ def create_appointment(
         "generated_id": generated_trans_id
     } 
   
+
+
+@router.get("/{opat_id}/combinelabreports")
+def get_combinelabreports(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
+            
+    query = text("""SELECT
+                        lbioresd_lbioresm_ltestm_id, 
+                        lbioresd_lresult_ltest_id,
+                        QL.LTEST_ID,
+                        QL.LTEST_MASTER_ID,
+                        QL.LTESTM_NAME,
+                        QL.ltest_desc as test,
+                        LL.ltest_desc as test_desc,
+                        lbioresd_lresult,
+                        QL.LBIORESD_LTEST_RESULT_UNT,
+                        QL.LTESTM_SYS_DATE,
+                        QL.LTEST_RANGE1,
+                        QL.LTEST_RANGE2,
+                        QL.LTEST_RANGE3,
+                        QL.LTEST_RANGE4,
+                        QL.LTEST_RANGE5,
+                        QL.LTEST_RANGE6,
+                        QL.LTEST_MASTER_ID
+                    FROM
+                    (SELECT
+                        BD.lbioresd_lbioresm_ltestm_id,
+                        L.LTEST_ID,
+                        M.LTESTM_NAME, 
+                        L.LTEST_DESC,
+                        BD.lbioresd_lresult_ltest_id,
+                        BD.lbioresd_lresult, 
+                        BD.lbioresd_lbioresm_ltest_id, 
+                        BD.lbioresd_ltest_result_unt,
+                        L.LTEST_RANGE1,
+                        L.LTEST_RANGE2,
+                        L.LTEST_RANGE3,
+                        L.LTEST_RANGE4,
+                        L.LTEST_RANGE5,
+                        L.LTEST_RANGE6,
+                        BD.LBIORESD_RANGE1,
+                        M.LTESTM_SYS_DATE,
+                        L.LTEST_MASTER_ID,
+                        RANK() OVER(PARTITION BY LTESTM_OPAT_ID || LTESTM_SER_DATE || LBIORESD_LRESULT_LTEST_ID ORDER BY LTESTM_ID DESC) RANK,
+                            -- 1. Count how many times this specific test appears for the patient
+                        COUNT(*) OVER(PARTITION BY BD.lbioresd_lresult_ltest_id) as test_occurrence_count
+                    FROM
+                        AASS.LTESTM_T M,
+                        AASS.LTESTD_T D,
+                        AASS.LBIORESM_T B, 
+                        AASS.LBIORESD_T BD,
+                        AASS.LTEST_T L
+                    WHERE 
+                        M.ltestm_opat_id = :opat_id
+                    AND 
+                        BD.lbioresd_lbioresm_ltest_id = L.ltest_id
+                    AND
+                        M.LTESTM_ID = D.LTESTD_LTESTM_ID
+                    AND
+                        L.LTEST_ID = D.LTESTD_LTEST_ID
+                    AND
+                        M.LTESTM_ID = B.LBIORESM_LTESTM_ID
+                    AND
+                        D.LTESTD_LTESTM_ID = B.LBIORESM_LTESTM_ID
+                    AND    
+                        D.LTESTD_LTEST_ID = B.LBIORESM_LTEST_ID
+                    AND
+                        M.LTESTM_ID = BD.LBIORESD_LBIORESM_LTESTM_ID
+                    AND
+                        D.LTESTD_LTESTM_ID = BD.LBIORESD_LBIORESM_LTESTM_ID
+                    AND
+                        D.LTESTD_LTEST_ID = BD.LBIORESD_LBIORESM_LTEST_ID
+                    AND
+                        B.LBIORESM_LTEST_ID = BD.LBIORESD_LBIORESM_LTEST_ID
+                    AND
+                        L.LTEST_STATUS = '1'
+                    AND 
+                        M.LTESTM_STATUS <> 2
+                    AND
+                        L.LTEST_DESC not in ('.')
+                    AND 
+                        BD.LBIORESD_LRESULT is not null 
+                    ) QL, AASS.ltest_t LL
+                    WHERE LL.ltest_id = QL.lbioresd_lresult_ltest_id
+                    --AND RANK = 1
+                        -- 2. Only show data if the test appears more than once
+                    AND QL.test_occurrence_count > 1
+                    
+                    """)
+    
+    
+    # .mappings() makes it easy to access columns by their names
+    result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
+    
+    if not result_rows:
+        raise HTTPException(status_code=403, detail="No Combine Reports found for this MR Number")
+    
+    # Grouping logic
+     # Initialize data structure
+    # grouped_reports = defaultdict(lambda: {
+    #     "ltest_master_id": "",
+    #     "lbioresd_lresult_ltest_id": "",
+    #     "test": "",
+    #     "ltestm_name": "",
+    #     "lbioresd_ltest_result_unt": "",
+    #     "history": []
+    # })
+
+    # for row in result_rows:
+    #     test_id = row["lbioresd_lresult_ltest_id"].strip() if row["lbioresd_lresult_ltest_id"] else ""
+        
+    #     # Populate top-level test details on first match
+    #     if not grouped_reports[test_id]["lbioresd_lresult_ltest_id"]:
+    #         grouped_reports[test_id].update({
+    #             "ltest_master_id": row["ltest_master_id"].strip() if row["ltest_master_id"] else "",
+    #             "lbioresd_lresult_ltest_id": test_id,
+    #             "test": row["test"].strip() if row["test"] else "",
+    #             "ltestm_name": row["ltestm_name"].strip() if row["ltestm_name"] else "",
+    #             "lbioresd_ltest_result_unt": row["lbioresd_ltest_result_unt"].strip() if row["lbioresd_ltest_result_unt"] else ""
+    #         })
+
+    #     # Append result details alongside its historical parameters
+    #     grouped_reports[test_id]["history"].append({
+    #         "lbioresd_lbioresm_ltestm_id": row["lbioresd_lbioresm_ltestm_id"],
+    #         "test_desc": row["test_desc"],
+    #         "lbioresd_lresult": row["lbioresd_lresult"].strip() if row["lbioresd_lresult"] else "",
+    #         "ltestm_sys_date": row["ltestm_sys_date"],
+    #         "ltest_range1": row["ltest_range1"].strip() if row["ltest_range1"] else None,
+    #         "ltest_range2": row["ltest_range2"].strip() if row["ltest_range2"] else None,
+    #         "ltest_range3": row["ltest_range3"].strip() if row["ltest_range3"] else None,
+    #         "ltest_range4": row["ltest_range4"].strip() if row["ltest_range4"] else None,
+    #         "ltest_range5": row["ltest_range5"].strip() if row["ltest_range5"] else None,
+    #         "ltest_range6": row["ltest_range6"].strip() if row["ltest_range6"] else None,
+    #     })
+
+    # return list(grouped_reports.values())
+    
+    def clean(value):
+        if value is None:
+            return ""
+        return str(value).strip()
+    
+    grouped_reports = {}
+
+    for row in result_rows:
+
+        master_id = clean(row["ltest_master_id"])
+
+        if master_id not in grouped_reports:
+            grouped_reports[master_id] = {
+                "ltest_master_id": master_id,
+                "test_name": clean(row["test"]),
+                "history": {}
+            }
+
+        report_id = row["lbioresd_lbioresm_ltestm_id"]
+
+        if report_id not in grouped_reports[master_id]["history"]:
+            grouped_reports[master_id]["history"][report_id] = {
+                "lbioresd_lbioresm_ltestm_id": report_id,
+                "date": row["ltestm_sys_date"],
+                "results": []
+            }
+
+        grouped_reports[master_id]["history"][report_id]["results"].append({
+            "test_id": clean(row["lbioresd_lresult_ltest_id"]),
+            "test_desc": clean(row["test_desc"]),
+            "result": clean(row["lbioresd_lresult"]),
+            "unit": clean(row["lbioresd_ltest_result_unt"]),
+            "range1": clean(row["ltest_range1"]),
+            "range2": clean(row["ltest_range2"]),
+            "range3": clean(row["ltest_range3"]),
+            "range4": clean(row["ltest_range4"]),
+            "range5": clean(row["ltest_range5"]),
+            "range6": clean(row["ltest_range6"]),
+        })
+
+    response = []
+
+    for master in grouped_reports.values():
+        master["history"] = list(master["history"].values())
+        response.append(master)
+
+    return response
