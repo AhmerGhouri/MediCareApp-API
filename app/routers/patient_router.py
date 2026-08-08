@@ -725,82 +725,62 @@ def get_combinelabreports(opat_id: str, db: Session = Depends(get_db), current_u
                         QL.LTEST_ID,
                         QL.LTEST_MASTER_ID,
                         QL.LTESTM_NAME,
-                        QL.ltest_desc as test,
-                        LL.ltest_desc as test_desc,
+                        QL.test,
+                        LL.ltest_desc as Test_desc,
                         lbioresd_lresult,
                         QL.LBIORESD_LTEST_RESULT_UNT,
                         QL.LTESTM_SYS_DATE,
-                        QL.LTEST_RANGE1,
-                        QL.LTEST_RANGE2,
-                        QL.LTEST_RANGE3,
-                        QL.LTEST_RANGE4,
-                        QL.LTEST_RANGE5,
-                        QL.LTEST_RANGE6,
-                        QL.LTEST_MASTER_ID
+                        QL.LASTRANGE
                     FROM
                     (SELECT
                         BD.lbioresd_lbioresm_ltestm_id,
                         L.LTEST_ID,
                         M.LTESTM_NAME, 
-                        L.LTEST_DESC,
+                        L.LTEST_DESC as test,
                         BD.lbioresd_lresult_ltest_id,
                         BD.lbioresd_lresult, 
                         BD.lbioresd_lbioresm_ltest_id, 
                         BD.lbioresd_ltest_result_unt,
-                        L.LTEST_RANGE1,
-                        L.LTEST_RANGE2,
-                        L.LTEST_RANGE3,
-                        L.LTEST_RANGE4,
-                        L.LTEST_RANGE5,
-                        L.LTEST_RANGE6,
-                        BD.LBIORESD_RANGE1,
+                        LTRIM(RTRIM(
+                        (L.LTEST_RANGE1)||
+                        DECODE(LTRIM(RTRIM(L.ltest_range2)),'','',CHR(13)||CHR(10)||RTRIM(L.ltest_range2))||
+                        DECODE(LTRIM(RTRIM(L.ltest_range3)),'','',CHR(13)||CHR(10)||RTRIM(L.ltest_range3))||
+                        DECODE(LTRIM(RTRIM(L.ltest_range4)),'','',CHR(13)||CHR(10)||RTRIM(L.ltest_range4))||
+                        DECODE(LTRIM(RTRIM(L.ltest_range5)),'','',CHR(13)||CHR(10)||RTRIM(L.ltest_range5))||
+                        DECODE(LTRIM(RTRIM(L.ltest_range6)),'','',CHR(13)||CHR(10)||RTRIM(L.ltest_range6)))) LASTRANGE,
                         M.LTESTM_SYS_DATE,
                         L.LTEST_MASTER_ID,
                         RANK() OVER(PARTITION BY LTESTM_OPAT_ID || LTESTM_SER_DATE || LBIORESD_LRESULT_LTEST_ID ORDER BY LTESTM_ID DESC) RANK,
-                            -- 1. Count how many times this specific test appears for the patient
+                        -- This count now correctly evaluates across your full history dataset
                         COUNT(*) OVER(PARTITION BY BD.lbioresd_lresult_ltest_id) as test_occurrence_count
                     FROM
                         AASS.LTESTM_T M,
                         AASS.LTESTD_T D,
-                        AASS.LBIORESM_T B, 
                         AASS.LBIORESD_T BD,
                         AASS.LTEST_T L
                     WHERE 
-                        M.ltestm_opat_id = :opat_id
-                    AND 
-                        BD.lbioresd_lbioresm_ltest_id = L.ltest_id
+                        M.ltestm_opat_id = :opat_id --'918'
                     AND
                         M.LTESTM_ID = D.LTESTD_LTESTM_ID
-                    AND
-                        L.LTEST_ID = D.LTESTD_LTEST_ID
-                    AND
-                        M.LTESTM_ID = B.LBIORESM_LTESTM_ID
-                    AND
-                        D.LTESTD_LTESTM_ID = B.LBIORESM_LTESTM_ID
-                    AND    
-                        D.LTESTD_LTEST_ID = B.LBIORESM_LTEST_ID
-                    AND
-                        M.LTESTM_ID = BD.LBIORESD_LBIORESM_LTESTM_ID
                     AND
                         D.LTESTD_LTESTM_ID = BD.LBIORESD_LBIORESM_LTESTM_ID
                     AND
                         D.LTESTD_LTEST_ID = BD.LBIORESD_LBIORESM_LTEST_ID
+                    AND 
+                    -- FIXED: Join on the component level ID to pull correct reference ranges
+                        BD.lbioresd_lresult_ltest_id = L.ltest_id
                     AND
-                        B.LBIORESM_LTEST_ID = BD.LBIORESD_LBIORESM_LTEST_ID
-                    AND
-                        L.LTEST_STATUS = '1'
+                        D.LTESTD_STATUS IN (3,4)
                     AND 
                         M.LTESTM_STATUS <> 2
                     AND
                         L.LTEST_DESC not in ('.')
                     AND 
                         BD.LBIORESD_LRESULT is not null 
-                    ) QL, AASS.ltest_t LL
+                    ) QL, aass.ltest_t LL
                     WHERE LL.ltest_id = QL.lbioresd_lresult_ltest_id
-                    --AND RANK = 1
-                        -- 2. Only show data if the test appears more than once
                     AND QL.test_occurrence_count > 1
-                    
+               
                     """)
     
     
@@ -882,12 +862,7 @@ def get_combinelabreports(opat_id: str, db: Session = Depends(get_db), current_u
             "test_desc": clean(row["test_desc"]),
             "result": clean(row["lbioresd_lresult"]),
             "unit": clean(row["lbioresd_ltest_result_unt"]),
-            "range1": clean(row["ltest_range1"]),
-            "range2": clean(row["ltest_range2"]),
-            "range3": clean(row["ltest_range3"]),
-            "range4": clean(row["ltest_range4"]),
-            "range5": clean(row["ltest_range5"]),
-            "range6": clean(row["ltest_range6"]),
+            "range": clean(row["lastrange"]),
         })
 
     response = []
