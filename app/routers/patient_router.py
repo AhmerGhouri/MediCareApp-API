@@ -725,41 +725,42 @@ def get_combinelabreports(opat_id: str, db: Session = Depends(get_db), current_u
                         QL.LTEST_ID,
                         QL.LTEST_MASTER_ID,
                         QL.LTESTM_NAME,
-                        QL.test,
-                        LL.ltest_desc as Test_desc,
+                        QL.test,                 -- Displays "Complete Blood Picture"
+                        LL.ltest_desc as Test_desc, -- Displays "Hemoglobin, WBC" etc.
                         lbioresd_lresult,
                         QL.LBIORESD_LTEST_RESULT_UNT,
                         QL.LTESTM_SYS_DATE,
-                        QL.LASTRANGE
+                        QL.LASTRANGE             -- Displays the correct ranges
                     FROM
                     (SELECT
                         BD.lbioresd_lbioresm_ltestm_id,
-                        L.LTEST_ID,
+                        LP.LTEST_ID,
                         M.LTESTM_NAME, 
-                        L.LTEST_DESC as test,
+                        LP.LTEST_DESC as test,   -- Pulled from Profile level
                         BD.lbioresd_lresult_ltest_id,
                         BD.lbioresd_lresult, 
                         BD.lbioresd_lbioresm_ltest_id, 
                         BD.lbioresd_ltest_result_unt,
+                        -- Ranges pulled from Component level (LC)
                         LTRIM(RTRIM(
-                        (L.LTEST_RANGE1)||
-                        DECODE(LTRIM(RTRIM(L.ltest_range2)),'','',CHR(13)||CHR(10)||RTRIM(L.ltest_range2))||
-                        DECODE(LTRIM(RTRIM(L.ltest_range3)),'','',CHR(13)||CHR(10)||RTRIM(L.ltest_range3))||
-                        DECODE(LTRIM(RTRIM(L.ltest_range4)),'','',CHR(13)||CHR(10)||RTRIM(L.ltest_range4))||
-                        DECODE(LTRIM(RTRIM(L.ltest_range5)),'','',CHR(13)||CHR(10)||RTRIM(L.ltest_range5))||
-                        DECODE(LTRIM(RTRIM(L.ltest_range6)),'','',CHR(13)||CHR(10)||RTRIM(L.ltest_range6)))) LASTRANGE,
+                        (LC.LTEST_RANGE1)||
+                        DECODE(LTRIM(RTRIM(LC.ltest_range2)),'','',CHR(13)||CHR(10)||RTRIM(LC.ltest_range2))||
+                        DECODE(LTRIM(RTRIM(LC.ltest_range3)),'','',CHR(13)||CHR(10)||RTRIM(LC.ltest_range3))||
+                        DECODE(LTRIM(RTRIM(LC.ltest_range4)),'','',CHR(13)||CHR(10)||RTRIM(LC.ltest_range4))||
+                        DECODE(LTRIM(RTRIM(LC.ltest_range5)),'','',CHR(13)||CHR(10)||RTRIM(LC.ltest_range5))||
+                        DECODE(LTRIM(RTRIM(LC.ltest_range6)),'','',CHR(13)||CHR(10)||RTRIM(LC.ltest_range6)))) LASTRANGE,
                         M.LTESTM_SYS_DATE,
-                        L.LTEST_MASTER_ID,
+                        LP.LTEST_MASTER_ID,
                         RANK() OVER(PARTITION BY LTESTM_OPAT_ID || LTESTM_SER_DATE || LBIORESD_LRESULT_LTEST_ID ORDER BY LTESTM_ID DESC) RANK,
-                        -- This count now correctly evaluates across your full history dataset
                         COUNT(*) OVER(PARTITION BY BD.lbioresd_lresult_ltest_id) as test_occurrence_count
                     FROM
-                        AASS.LTESTM_T M,
-                        AASS.LTESTD_T D,
-                        AASS.LBIORESD_T BD,
-                        AASS.LTEST_T L
+                        aass.LTESTM_T M,
+                        aass.LTESTD_T D,
+                        aass.LBIORESD_T BD,
+                        aass.LTEST_T LP,  -- Alias for Profile-level test details
+                        aass.LTEST_T LC   -- Alias for Component-level reference ranges
                     WHERE 
-                        M.ltestm_opat_id = :opat_id --'918'
+                        M.ltestm_opat_id = :opat_id
                     AND
                         M.LTESTM_ID = D.LTESTD_LTESTM_ID
                     AND
@@ -767,20 +768,22 @@ def get_combinelabreports(opat_id: str, db: Session = Depends(get_db), current_u
                     AND
                         D.LTESTD_LTEST_ID = BD.LBIORESD_LBIORESM_LTEST_ID
                     AND 
-                    -- FIXED: Join on the component level ID to pull correct reference ranges
-                        BD.lbioresd_lresult_ltest_id = L.ltest_id
+                        -- Join 1: Get Profile Name (Complete Blood Picture)
+                        BD.lbioresd_lbioresm_ltest_id = LP.ltest_id
+                    AND
+                        -- Join 2: Get Component Ranges (Hemoglobin, WBC)
+                        BD.lbioresd_lresult_ltest_id = LC.ltest_id
                     AND
                         D.LTESTD_STATUS IN (3,4)
                     AND 
                         M.LTESTM_STATUS <> 2
                     AND
-                        L.LTEST_DESC not in ('.')
+                        LP.LTEST_DESC not in ('.')
                     AND 
                         BD.LBIORESD_LRESULT is not null 
                     ) QL, aass.ltest_t LL
                     WHERE LL.ltest_id = QL.lbioresd_lresult_ltest_id
                     AND QL.test_occurrence_count > 1
-               
                     """)
     
     
