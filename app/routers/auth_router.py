@@ -2,7 +2,7 @@
 from multiprocessing import get_context
 import random
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy import text
+from sqlalchemy import Column, Integer, text
 from sqlalchemy.orm import Session
 from app.db.oracle import get_db
 from app.models.models import AppUser, HospitalPatient, EligibleUser
