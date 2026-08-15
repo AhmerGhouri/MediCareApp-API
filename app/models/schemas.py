@@ -18,9 +18,20 @@ class LoginRequest(BaseModel):
 
 class MRNumberResponse(BaseModel):
     mr_no: str
-    patient_name: str
-    gender: str
-    dob: date
+    patient_name: Optional[str] = None
+    gender: Optional[str] = None
+    # Wrap date with Optional to allow NULL / None from Oracle
+    dob: Optional[date] = None  
+
+    # Enable ORM mode so SQLAlchemy objects convert automatically
+    model_config = {"from_attributes": True}  # Pydantic v2
+    # class Config: orm_mode = True            # Use this instead if on Pydantic v1
+
+# class MRNumberResponse(BaseModel):
+#     mr_no: str
+#     patient_name: str
+#     gender: str
+#     dob: date
     
 class LoginResponse(BaseModel):
     access_token: str
