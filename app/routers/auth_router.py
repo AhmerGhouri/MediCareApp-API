@@ -1,8 +1,9 @@
 # app/routers/auth_router.py
 from multiprocessing import get_context
+import re
 import random
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy import Column, Integer, text
+from sqlalchemy import Column, Integer, text, func
 from sqlalchemy.orm import Session
 from app.db.oracle import get_db
 from app.models.models import AppUser, HospitalPatient, EligibleUser
@@ -45,35 +46,88 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         # raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
         raise e
     
-    
+
+
 @router.post("/login", response_model=LoginResponse)
-# @router.post("/login")
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    # 1. Verify the app user credentials
-    user = db.query(AppUser).filter(AppUser.mob == request.mobile_number).first()
-    
+    # 1. Strip non-digit characters from incoming mobile number
+    clean_mobile = re.sub(r"\D", "", request.mobile_number)
+
+    # 2. Verify user credentials (matching normalized mobile)
+    user = (
+        db.query(AppUser)
+        .filter(func.regexp_replace(AppUser.mob, "[^0-9]", "") == clean_mobile)
+        .first()
+    )
+
     if not user or not verify_password(request.password, user.password):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="Invalid mobile number or password"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid mobile number or password",
         )
-    
-    # 2. Fetch all MR numbers associated with this mobile number
-    patients = db.query(HospitalPatient).filter(HospitalPatient.opat_phone == user.mob).all()
-    
-    
-    # 3. Generate the JWT Token
-    access_token = create_access_token(data={"sub": user.mob})
-    
-    # 4. Return the token and the array of MR numbers to the React Native app
+
+    # 3. Fetch ALL MR numbers matching the normalized phone number (ignores dashes in Oracle)
+    patients = (
+        db.query(HospitalPatient)
+        .filter(
+            func.regexp_replace(HospitalPatient.opat_phone, "[^0-9]", "")
+            == clean_mobile
+        )
+        .all()
+    )
+
+    # Extract array of MR numbers for JWT payload
+    mr_no_list = [str(p.opat_id) for p in patients]
+
+    # 4. Generate JWT Token containing both clean mobile and MR numbers array
+    access_token = create_access_token(
+        data={"sub": clean_mobile, "mr_numbers": mr_no_list}
+    )
+
+    # 5. Return token and array of MR numbers to React Native
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        # "mr_numbers": [{"mr_no": str(p.opat_id), "patient_name": p.opat_pname , "gender" : p.opat_sex , "dob" : p.opat_bdate} for p in patients]
-        "mr_numbers": [{"mr_no": str(p.opat_id), "patient_name": p.opat_pname , "gender" : p.opat_sex , "dob" : p.opat_bdate} for p in patients]
+        "mr_numbers": [
+            {
+                "mr_no": str(p.opat_id),
+                "patient_name": p.opat_pname,
+                "gender": p.opat_sex,
+                "dob": p.opat_bdate,
+            }
+            for p in patients
+        ],
     }
+
     
-    # return access_token
+# @router.post("/login", response_model=LoginResponse)
+# # @router.post("/login")
+# def login(request: LoginRequest, db: Session = Depends(get_db)):
+#     # 1. Verify the app user credentials
+#     user = db.query(AppUser).filter(AppUser.mob == request.mobile_number).first()
+    
+#     if not user or not verify_password(request.password, user.password):
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED, 
+#             detail="Invalid mobile number or password"
+#         )
+    
+#     # 2. Fetch all MR numbers associated with this mobile number
+#     patients = db.query(HospitalPatient).filter(HospitalPatient.opat_phone == user.mob).all()
+    
+    
+#     # 3. Generate the JWT Token
+#     access_token = create_access_token(data={"sub": user.mob})
+    
+#     # 4. Return the token and the array of MR numbers to the React Native app
+#     return {
+#         "access_token": access_token,
+#         "token_type": "bearer",
+#         # "mr_numbers": [{"mr_no": str(p.opat_id), "patient_name": p.opat_pname , "gender" : p.opat_sex , "dob" : p.opat_bdate} for p in patients]
+#         "mr_numbers": [{"mr_no": str(p.opat_id), "patient_name": p.opat_pname , "gender" : p.opat_sex , "dob" : p.opat_bdate} for p in patients]
+#     }
+    
+#     # return access_token
     
 @router.post("/check-eligibility")
 def check_eligibility(request: CheckEligibilityRequest, db: Session = Depends(get_db)):

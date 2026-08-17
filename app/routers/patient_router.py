@@ -49,12 +49,12 @@ def get_lab_reports(opat_id: str, db: Session = Depends(get_db), current_user: A
                         O.OPAT_ID = :opat_id
                     AND 
                         D.LTESTD_LTEST_ID = L.LTEST_ID
-                    AND 
-                        O.OPAT_PHONE = :mobile_number""")
+                        """)
     
     
     # .mappings() makes it easy to access columns by their names
-    result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
+    # result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
+    result_rows = db.execute(query, {"opat_id": opat_id}).mappings().all()
     
     if not result_rows:
         raise HTTPException(status_code=403, detail="No Report found for this MR Number")
