@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from sqlalchemy import Column, Integer, Sequence, String, Date
 from app.db.oracle import Base
 
@@ -6,9 +7,7 @@ class AppUser(Base):
     __tablename__ = "MMH_USERREGDATA"
     __table_args__ = {"schema": "aass"} 
     
-    # autoid = Column(Integer, primary_key=True, index=True)
     autoid = Column(Integer, primary_key=True , autoincrement=True)
-    # mob = Column(String(15), unique=True, index=True)
     mob = Column(String(15), index=True , unique=True)
     password = Column(String(255))
 
@@ -38,3 +37,7 @@ class EligibleUser(Base):
     
     mob = Column(String, primary_key=True)
     pname = Column(String)
+    
+class DeviceTokenRequest(BaseModel):
+    device_token: str
+    platform: str  # 'android' or 'ios'

@@ -16,6 +16,10 @@ class LoginRequest(BaseModel):
     mobile_number: str
     password: str
 
+class DeviceTokenRequest(BaseModel):
+    device_token: str
+    platform: str  # 'android' or 'ios'
+
 class MRNumberResponse(BaseModel):
     mr_no: str
     patient_name: Optional[str] = None
@@ -26,12 +30,6 @@ class MRNumberResponse(BaseModel):
     # Enable ORM mode so SQLAlchemy objects convert automatically
     model_config = {"from_attributes": True}  # Pydantic v2
     # class Config: orm_mode = True            # Use this instead if on Pydantic v1
-
-# class MRNumberResponse(BaseModel):
-#     mr_no: str
-#     patient_name: str
-#     gender: str
-#     dob: date
     
 class LoginResponse(BaseModel):
     access_token: str
@@ -67,23 +65,4 @@ class PasswordResetConfirm(BaseModel):
     email: EmailStr
     otp_code: str
     new_password: str
-    
-# class ConsultantOut(BaseModel):
-    
-#     model_config = ConfigDict(
-#         from_attributes=True,
-#         alias_generator=lambda field_name: field_name.lower(),
-#         populate_by_name=True
-#     )
-    
-#     CONSL_ID: str | int
-#     CONSL_DESC: Optional[str] = None
-#     CONSL_DEGR: Optional[str] = None
-#     CONSL_SPEC_ID: Optional[str] = None
-#     CONSL_STATUS: int
-#     CONSL_MDEPT_ID: Optional[str] = None
-#     D_MDEPT_DESC: Optional[str] = None # Renamed to match query or aliases
-
-#     class Config:
-#         from_attributes = True
-    
+ 

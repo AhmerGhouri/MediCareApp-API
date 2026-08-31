@@ -4,7 +4,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from app.routers import auth_router, patient_router
+from app.db.oracle import SessionLocal
+from app.routers import auth_router, health_router, patient_router
+from apscheduler.schedulers.background import BackgroundScheduler
+from app.services.notifier import check_and_notify_new_reports
 
 
 # Initialize standard Python logging (Gunicorn/Systemd will catch this automatically)
@@ -12,6 +15,21 @@ logger = logging.getLogger("hospital_api_logger")
 logger.setLevel(logging.ERROR)
 
 app = FastAPI(title="Hospital Patient API")
+app.include_router(health_router.router, tags=["health"])
+
+
+def scheduled_report_check():
+    db = SessionLocal()
+    try:
+        check_and_notify_new_reports(db)
+    except Exception as e:
+        logger.error(f"Scheduled job failed: {str(e)}")
+    finally:
+        db.close()
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(scheduled_report_check, "interval", minutes=5, id="report_notify_job", max_instances=1)
+scheduler.start()
 
 # --- 2. Global Exception Handlers ---
 
