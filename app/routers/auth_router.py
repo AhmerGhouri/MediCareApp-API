@@ -6,7 +6,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import Column, Integer, text, func
 from sqlalchemy.orm import Session
 from app.db.oracle import get_db
-from app.models.models import AppUser, HospitalPatient, EligibleUser
+from app.deps import get_current_user
+from app.models.models import AppUser, DeviceTokenRequest, HospitalPatient, EligibleUser
 from app.models.schemas import OTPRequest, PasswordResetConfirm, RegisterRequest, LoginRequest, LoginResponse, CheckEligibilityRequest, ResetPassword
 from app.api.auth.auth import get_password_hash, verify_password, create_access_token
 from app.routers.emailservice import send_otp_email
@@ -100,35 +101,6 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     }
 
     
-# @router.post("/login", response_model=LoginResponse)
-# # @router.post("/login")
-# def login(request: LoginRequest, db: Session = Depends(get_db)):
-#     # 1. Verify the app user credentials
-#     user = db.query(AppUser).filter(AppUser.mob == request.mobile_number).first()
-    
-#     if not user or not verify_password(request.password, user.password):
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED, 
-#             detail="Invalid mobile number or password"
-#         )
-    
-#     # 2. Fetch all MR numbers associated with this mobile number
-#     patients = db.query(HospitalPatient).filter(HospitalPatient.opat_phone == user.mob).all()
-    
-    
-#     # 3. Generate the JWT Token
-#     access_token = create_access_token(data={"sub": user.mob})
-    
-#     # 4. Return the token and the array of MR numbers to the React Native app
-#     return {
-#         "access_token": access_token,
-#         "token_type": "bearer",
-#         # "mr_numbers": [{"mr_no": str(p.opat_id), "patient_name": p.opat_pname , "gender" : p.opat_sex , "dob" : p.opat_bdate} for p in patients]
-#         "mr_numbers": [{"mr_no": str(p.opat_id), "patient_name": p.opat_pname , "gender" : p.opat_sex , "dob" : p.opat_bdate} for p in patients]
-#     }
-    
-#     # return access_token
-    
 @router.post("/check-eligibility")
 def check_eligibility(request: CheckEligibilityRequest, db: Session = Depends(get_db)):
     # 1. Check if the number exists in the hospital's authorized list
@@ -173,8 +145,6 @@ def check_eligibility(request: CheckEligibilityRequest, db: Session = Depends(ge
     
 @router.post("/reset-password")
 def reset_password(request: ResetPassword, db: Session = Depends(get_db)):
-    # 1. Check if the number exists in the hospital's authorized list
-    # is_eligible = db.query(EligibleUser).filter(EligibleUser.mob == request.mobile_number).first()
     
     query = text("""UPDATE aass.MMH_USERREGDATA 
                     SET PASSWORD = :password
@@ -215,7 +185,7 @@ def request_otp(payload: OTPRequest, background_tasks: BackgroundTasks, db: Sess
     
     # 1. Verify user exists 
     # (Replace APP_USERS_T with your actual users table)
-    check_user = text("SELECT 1 FROM MMH_USERREGDATA WHERE mob = :mobile")
+    check_user = text("SELECT 1 FROM aass.MMH_USERREGDATA WHERE mob = :mobile")
     if not db.execute(check_user, {"mobile" : payload.mobile}).fetchone():
         logger.warning(f"OTP requested for unregistered email: {payload.mobile}")
         return {"status": "success", "message": "If that email is registered, an OTP has been sent."}
@@ -225,8 +195,8 @@ def request_otp(payload: OTPRequest, background_tasks: BackgroundTasks, db: Sess
     
     # 3. Store in database with a 10-minute Oracle SYSDATE expiration
     merge_query = text("""
-       MERGE INTO USER_PASS_OTP_T tgt
-        USING (SELECT :mobile AS MOBILE_NO, :email as EMAIL, :otp AS OTP_CODE FROM DUAL) src
+       MERGE INTO aass.USER_PASS_OTP_T tgt
+        USING (SELECT :mobile AS MOBILE_NO, :email as EMAIL, :otp AS aass.OTP_CODE FROM DUAL) src
         ON (tgt.MOBILE_NO = src.MOBILE_NO)
         WHEN MATCHED THEN 
             UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.OTP_EXPIRY = SYSTIMESTAMP + INTERVAL '1' MINUTE
@@ -241,7 +211,6 @@ def request_otp(payload: OTPRequest, background_tasks: BackgroundTasks, db: Sess
         logger.info(f"OTP generated and stored for: {payload.mobile}")
         
         # 4. Offload the SMTP request to the background so the API returns instantly
-        # background_tasks.add_task(send_otp_email, payload.email ,otp_code)
         send_otp_email(payload.email, otp_code)
         return {"status": "success", "message": "Email sent successfully!"}
         
@@ -251,7 +220,6 @@ def request_otp(payload: OTPRequest, background_tasks: BackgroundTasks, db: Sess
         logger.error(f"DB Error while generating OTP for {payload.email}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
     
-    # return {"status": "success", "message": "If that email is registered, an OTP has been sent." ,"otp" : otp_code}
 
 
 @router.post("/verify-otp-and-reset")
@@ -259,7 +227,7 @@ def verify_and_reset(payload: PasswordResetConfirm, db: Session = Depends(get_db
     
     # 1. Verify OTP validity and expiration directly via Oracle SYSDATE
     verify_query = text("""
-        SELECT 1 FROM USER_PASS_OTP_T 
+        SELECT 1 FROM aass.USER_PASS_OTP_T 
         WHERE MOBILE_NO = :mobile 
           AND OTP_CODE = :otp 
           AND OTP_EXPIRY > SYSTIMESTAMP
@@ -275,8 +243,8 @@ def verify_and_reset(payload: PasswordResetConfirm, db: Session = Depends(get_db
     # hashed_password = get_context.hash(payload.new_password)
 
     # 3. Update the password and clear the used OTP atomically
-    update_pwd_query = text("UPDATE MMH_USERREGDATA SET PASSWORD = :password WHERE MOB = :mobile")
-    delete_otp_query = text("DELETE FROM USER_PASS_OTP_T WHERE MOBILE_NO = :mobile")
+    update_pwd_query = text("UPDATE aass.MMH_USERREGDATA SET PASSWORD = :password WHERE MOB = :mobile")
+    delete_otp_query = text("DELETE FROM aass.USER_PASS_OTP_T WHERE MOBILE_NO = :mobile")
     
     try:
         db.execute(update_pwd_query, {"password": payload.new_password , "mobile": payload.mobile})
@@ -291,36 +259,35 @@ def verify_and_reset(payload: PasswordResetConfirm, db: Session = Depends(get_db
     return {"status": "success", "message": "Password reset successfully. You can now log in."}
     
     
-    
-    
       
-    # ---------------------------------------------------------------------------------------------
+@router.post("/register-device")
+def register_device(
+    payload: DeviceTokenRequest,
+    db: Session = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user)  # NEW: require valid JWT
+):
+    # Merge query handles new tokens or refreshes existing ones.
+    # mobile number is taken from the authenticated user's token, never from the request body,
+    # so a caller can only ever register a device against their own account.
+    query = text("""
+        MERGE INTO aass.USER_DEVICES_T tgt
+        USING (SELECT :mob AS MOB, :token AS DEVICE_TOKEN, :platform AS PLATFORM FROM DUAL) src
+        ON (tgt.DEVICE_TOKEN = src.DEVICE_TOKEN)
+        WHEN MATCHED THEN
+            UPDATE SET tgt.MOB = src.MOB, tgt.UPDATED_AT = SYSTIMESTAMP
+        WHEN NOT MATCHED THEN
+            INSERT (MOB, DEVICE_TOKEN, PLATFORM)
+            VALUES (src.MOB, src.DEVICE_TOKEN, src.PLATFORM)
+    """)
+    try:
+        db.execute(query, {
+            "mob": current_user.mob,          # <-- from JWT, not client input
+            "token": payload.device_token,
+            "platform": payload.platform
+        })
+        db.commit()
+        return {"status": "success", "message": "Device token registered"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to register device token") 
     
-    # 1. Check if the mobile number exists in the hospital's patient database
-    # hospital_records = db.query(HospitalPatient).filter(HospitalPatient.opat_phone == request.mobile_number).all()
-    
-    # if not hospital_records:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_404_NOT_FOUND, 
-    #         detail="Mobile number not found in hospital records."
-    #     )
-    
-    # # 2. Check if the user has already registered for the mobile app
-    # existing_user = db.query(AppUser).filter(AppUser.mob == request.mobile_number).first()
-    # if existing_user:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_400_BAD_REQUEST, 
-    #         detail="User already registered. Please proceed to login."
-    #     )
-    
-    # # 3. Create the app user with a hashed password
-    # hashed_pwd = get_password_hash(request.password)
-    # # new_app_user = AppUser(mobile_number=request.mobile_number, hashed_password=hashed_pwd)
-    # new_app_user = AppUser(mobile_number=request.mobile_number, password=hashed_pwd)
-    
-    # db.add(new_app_user)
-    # db.commit()
-    
-    # return {"message": "Registration successful. You can now log in."}
-    
-    # --------------------------------------------------------------------------------------------- 

@@ -3,7 +3,7 @@ import base64
 from collections import defaultdict
 from datetime import date, datetime, time
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from oracledb import IntegrityError
 from sqlalchemy import text
@@ -12,16 +12,12 @@ from app.db.oracle import get_db
 from app.deps import get_current_user
 from app.models.models import AppUser, HospitalPatient
 from app.models.schemas import AppointmentBooking
-
+# from app.services.push_service import send_push_notification
 router = APIRouter()
 
 @router.get("/{opat_id}/reports")
 def get_lab_reports(opat_id: str, db: Session = Depends(get_db), current_user: AppUser = Depends(get_current_user)):
-    
-    
-    # TODO: Perform your Oracle queries here to get today's clinic, etc. using mr_no
-    
-    
+        
     query = text("""SELECT 
                         M.LTESTM_ID,
                         D.LTESTD_UNIQUE_ID,
@@ -50,8 +46,7 @@ def get_lab_reports(opat_id: str, db: Session = Depends(get_db), current_user: A
                     AND 
                         D.LTESTD_LTEST_ID = L.LTEST_ID
                         """)
-    
-    
+  
     # .mappings() makes it easy to access columns by their names
     # result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
     result_rows = db.execute(query, {"opat_id": opat_id}).mappings().all()
@@ -65,7 +60,7 @@ def get_lab_reports(opat_id: str, db: Session = Depends(get_db), current_user: A
     
     return {
         "opat_id" : first_row["opat_id"],
-        "patient_name" : first_row["opat_pname"],
+        "patient_name" : first_row["opat_pname"],   
         "mobile" : first_row["opat_phone"],
         "reports" : [
             {
@@ -185,7 +180,6 @@ def get_inpatient_history(opat_id: str, db: Session = Depends(get_db), current_u
                     AND
                         (O.OPAT_PHONE = :mobile_number OR I.IPAT_SPOUSE_PHONE = :mobile_number)
                     """)
-    
     
     # .mappings() makes it easy to access columns by their names
     result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
@@ -318,7 +312,7 @@ def get_upcomingappointments(opat_id: str, db: Session = Depends(get_db), curren
                         D.TIME_IN >= TO_CHAR(SYSDATE, 'HH24:MI')
                         ))
                     """)
-    
+   
     
     # .mappings() makes it easy to access columns by their names
     result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
@@ -390,7 +384,7 @@ def get_todaysclinic(db: Session = Depends(get_db)):
                         SYSDATE,
                         TO_CHAR(SYSDATE, 'Day')
                     """)
-    
+
     
     # .mappings() makes it easy to access columns by their names
     result_rows = db.execute(query).mappings().all()
@@ -447,8 +441,6 @@ def get_consultants(db: Session = Depends(get_db)):
                         LTRIM(RTRIM(C.CONSL_ID)) = LTRIM(RTRIM(A.TIME_CONSL_ID))
                     """)
     
-        
-    
     # .mappings() makes it easy to access columns by their names
     result_rows = db.execute(query).mappings().all()
     
@@ -473,27 +465,6 @@ def get_consultants(db: Session = Depends(get_db)):
         
     # JSONResponse bypasses FastAPI's internal serialisation pipeline
     return JSONResponse(content=clean_data)
-
-    
-    # clean_data = []
-    # for row in result_rows:
-    #     row_dict = {}
-    #     for key, value in row.items():
-    #         # If value is raw bytes (like the image or a binary id), convert to string safely
-    #         if isinstance(value, bytes):
-    #             try:
-    #                 row_dict[key] = value.decode('utf-8')
-    #             except UnicodeDecodeError:
-    #                 # If it's image data or encrypted bytes, encode as base64 string
-    #                 row_dict[key] = base64.b64encode(value).decode('utf-8')
-    #         else:
-    #             row_dict[key] = value
-    #     clean_data.append(row_dict)
-        
-    # # JSONResponse bypasses FastAPI's internal serialisation pipeline
-    # return JSONResponse(content=clean_data)
-
-    
     
 
 @router.get("/{opat_id}/{consl_id}/{app_date}/appointments")
@@ -554,7 +525,7 @@ def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session
                         D.MDEPT_DESC
                         ORDER BY TIME_IN ASC 
                     """)
-    
+
     
     # .mappings() makes it easy to access columns by their names
     result_rows = db.execute(query, {"opat_id": opat_id, "consl_id" : consl_id , "app_date" : app_date , "mobile_number": current_user.mob}).mappings().all()
@@ -616,7 +587,8 @@ def create_appointment(
 
     # STEP 2: SECURITY VERIFICATION
     # Ensure the logged-in mobile user can only book for their own profile MR number
-    check_query = text("SELECT 1 FROM aass.OPAT_T WHERE OPAT_ID = :opat_id AND OPAT_PHONE = :mobile_number")
+    check_query = text("SELECT 1 FROM OPAT_T WHERE OPAT_ID = :opat_id AND OPAT_PHONE = :mobile_number")
+    # check_query = text("SELECT 1 FROM aass.OPAT_T WHERE OPAT_ID = :opat_id AND OPAT_PHONE = :mobile_number")
     access_allowed = db.execute(check_query, {"opat_id": opat_id, "mobile_number": current_user.mob}).fetchone()
     
     if not access_allowed:
@@ -786,52 +758,12 @@ def get_combinelabreports(opat_id: str, db: Session = Depends(get_db), current_u
                     AND QL.test_occurrence_count > 1
                     """)
     
-    
     # .mappings() makes it easy to access columns by their names
     result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
     
     if not result_rows:
         raise HTTPException(status_code=403, detail="No Combine Reports found for this MR Number")
     
-    # Grouping logic
-     # Initialize data structure
-    # grouped_reports = defaultdict(lambda: {
-    #     "ltest_master_id": "",
-    #     "lbioresd_lresult_ltest_id": "",
-    #     "test": "",
-    #     "ltestm_name": "",
-    #     "lbioresd_ltest_result_unt": "",
-    #     "history": []
-    # })
-
-    # for row in result_rows:
-    #     test_id = row["lbioresd_lresult_ltest_id"].strip() if row["lbioresd_lresult_ltest_id"] else ""
-        
-    #     # Populate top-level test details on first match
-    #     if not grouped_reports[test_id]["lbioresd_lresult_ltest_id"]:
-    #         grouped_reports[test_id].update({
-    #             "ltest_master_id": row["ltest_master_id"].strip() if row["ltest_master_id"] else "",
-    #             "lbioresd_lresult_ltest_id": test_id,
-    #             "test": row["test"].strip() if row["test"] else "",
-    #             "ltestm_name": row["ltestm_name"].strip() if row["ltestm_name"] else "",
-    #             "lbioresd_ltest_result_unt": row["lbioresd_ltest_result_unt"].strip() if row["lbioresd_ltest_result_unt"] else ""
-    #         })
-
-    #     # Append result details alongside its historical parameters
-    #     grouped_reports[test_id]["history"].append({
-    #         "lbioresd_lbioresm_ltestm_id": row["lbioresd_lbioresm_ltestm_id"],
-    #         "test_desc": row["test_desc"],
-    #         "lbioresd_lresult": row["lbioresd_lresult"].strip() if row["lbioresd_lresult"] else "",
-    #         "ltestm_sys_date": row["ltestm_sys_date"],
-    #         "ltest_range1": row["ltest_range1"].strip() if row["ltest_range1"] else None,
-    #         "ltest_range2": row["ltest_range2"].strip() if row["ltest_range2"] else None,
-    #         "ltest_range3": row["ltest_range3"].strip() if row["ltest_range3"] else None,
-    #         "ltest_range4": row["ltest_range4"].strip() if row["ltest_range4"] else None,
-    #         "ltest_range5": row["ltest_range5"].strip() if row["ltest_range5"] else None,
-    #         "ltest_range6": row["ltest_range6"].strip() if row["ltest_range6"] else None,
-    #     })
-
-    # return list(grouped_reports.values())
     
     def clean(value):
         if value is None:
@@ -875,3 +807,42 @@ def get_combinelabreports(opat_id: str, db: Session = Depends(get_db), current_u
         response.append(master)
 
     return response
+
+@router.post("/reports/publish")
+def publish_report(report_id: str, patient_mob: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # 1. Update report status in Oracle DB ...
+    
+    # 2. Fetch active device tokens for the patient
+    tokens_query = text("SELECT DEVICE_TOKEN FROM aass.USER_DEVICES_T WHERE MOB = :mob")
+    devices = db.execute(tokens_query, {"mob": patient_mob}).fetchall()
+    
+    # 3. Offload push delivery to background task
+    for device in devices:
+        background_tasks.add_task(
+            send_push_notification,
+            device_token=device.DEVICE_TOKEN,
+            title="Lab Report Ready",
+            body="Your latest lab results have been published. Tap to view.",
+            data_payload={"report_id": report_id, "screen": "ReportDetails"}
+        )
+        
+    return {"status": "success", "message": "Report published and notification queued"}
+
+
+
+
+@router.post("/notify/promotion")
+def send_promo(title: str, body: str):
+    from app.services.push_service import send_topic_notification
+    send_topic_notification("promotions", title, body)
+    return {"status": "success"}
+
+
+# Only For testing purpose
+# The use case of this endpoint is if any worker stops or get stuck, run that job manually
+@router.post("/reports/check-now")
+def trigger_report_check(db: Session = Depends(get_db)):
+    """Manually runs the notifier batch immediately, instead of waiting for the next scheduled interval."""
+    from app.services.notifier import check_and_notify_new_reports
+    check_and_notify_new_reports(db)
+    return {"status": "success", "message": "Report check completed"}
