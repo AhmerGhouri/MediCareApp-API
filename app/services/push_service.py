@@ -14,6 +14,37 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 
 
+def send_push_notification(device_token: str, title: str, body: str, data_payload: dict = None, db=None):
+    """
+    Sends a single targeted push notification via FCM.
+    Use this for one-off sends (e.g. an immediate booking confirmation).
+    For sending to many recipients at once, use send_bulk_push instead.
+    """
+    message = messaging.Message(
+        notification=messaging.Notification(title=title, body=body),
+        data={k: str(v) for k, v in (data_payload or {}).items()},
+        token=device_token,
+    )
+    try:
+        response = messaging.send(message)
+        logger.info(f"Successfully sent push notification to token ending in ...{device_token[-6:]}")
+        return response
+    except messaging.UnregisteredError:
+        logger.warning(f"Token unregistered, removing: ...{device_token[-6:]}")
+        if db is not None:
+            from sqlalchemy import text
+            try:
+                db.execute(text("DELETE FROM USER_DEVICES_T WHERE DEVICE_TOKEN = :t"), {"t": device_token})
+                db.commit()
+            except Exception as cleanup_err:
+                db.rollback()
+                logger.error(f"Failed to clean up dead token: {str(cleanup_err)}")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to send push notification: {str(e)}")
+        return None
+
+
 def send_bulk_push(messages: list[dict]) -> list[str]:
     """
     messages: list of {"token", "title", "body", "data"}

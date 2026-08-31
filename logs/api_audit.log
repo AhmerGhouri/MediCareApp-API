@@ -183,3 +183,11 @@ Help: https://docs.oracle.com/error-help/db/ora-12899/
 2026-07-21 12:25:33,453 - INFO - [auth_router.py:187] - OTP generated and stored for: 03462720014
 2026-07-21 12:25:35,735 - INFO - [emailservice.py:49] - OTP email successfully dispatched to ahmer.ghouri@jmc.edu.pk
 2026-07-21 12:26:16,357 - INFO - [auth_router.py:231] - Password successfully reset for: 03462720014
+2026-08-31 11:39:30,835 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 11:44:30,894 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)

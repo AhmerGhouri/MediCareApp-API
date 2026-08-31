@@ -8,6 +8,8 @@ from app.db.oracle import SessionLocal
 from app.routers import auth_router, health_router, patient_router
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.notifier import check_and_notify_new_reports
+from app.services.appointment_notifier import check_and_send_appointment_reminders
+
 
 
 # Initialize standard Python logging (Gunicorn/Systemd will catch this automatically)
@@ -27,7 +29,25 @@ def scheduled_report_check():
     finally:
         db.close()
 
+def scheduled_appointment_reminder_check():
+    db = SessionLocal()
+    try:
+        check_and_send_appointment_reminders(db)
+    except Exception as e:
+        logger.error(f"Appointment reminder job failed: {str(e)}")
+    finally:
+        db.close()
+
 scheduler = BackgroundScheduler()
+
+scheduler.add_job(
+    scheduled_appointment_reminder_check,
+    "interval",
+    minutes=15,
+    id="appointment_reminder_job",
+    max_instances=1
+)
+
 scheduler.add_job(scheduled_report_check, "interval", minutes=5, id="report_notify_job", max_instances=1)
 scheduler.start()
 

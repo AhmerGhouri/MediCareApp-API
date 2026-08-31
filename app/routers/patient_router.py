@@ -12,7 +12,10 @@ from app.db.oracle import get_db
 from app.deps import get_current_user
 from app.models.models import AppUser, HospitalPatient
 from app.models.schemas import AppointmentBooking
-# from app.services.push_service import send_push_notification
+from app.services.push_service import send_push_notification
+
+
+
 router = APIRouter()
 
 @router.get("/{opat_id}/reports")
@@ -678,6 +681,21 @@ def create_appointment(
         except Exception as e:
             db.rollback()
             raise HTTPException(status_code=400, detail=f"Database execution failed: {str(e)}")
+        
+    tokens = db.execute(
+    text("SELECT DEVICE_TOKEN FROM USER_DEVICES_T WHERE MOB = :mob"),
+    {"mob": current_user.mob}
+    ).fetchall()
+
+    for t in tokens:
+        BackgroundTasks.add_task(
+        send_push_notification,
+        device_token=t.DEVICE_TOKEN,
+        title="Appointment Confirmed",
+        body=f"Your appointment with {appointment.consl_id} on {appointment.appoint_date} at {appointment.appoint_time} is confirmed.",
+        data_payload={"tran_id": str(generated_trans_id), "screen": "AppointmentDetails"},
+        db=db
+    )
         
     return {
         "status": "success", 
