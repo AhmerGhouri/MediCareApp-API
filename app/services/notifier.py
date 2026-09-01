@@ -1,6 +1,6 @@
 # app/services/notifier.py
 from datetime import datetime
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from app.services.push_service import send_bulk_push
 from app.logger import logger
 
@@ -62,7 +62,8 @@ def _run_notification_batch(db):
     tokens_by_phone = {}
     if phones:
         token_rows = db.execute(
-            text("SELECT MOB, DEVICE_TOKEN FROM aass.USER_DEVICES_T WHERE MOB IN :phones"),
+            text("SELECT MOB, DEVICE_TOKEN FROM aass.USER_DEVICES_T WHERE MOB IN :phones")
+            .bindparams(bindparam("phones", expanding=True)),
             {"phones": phones}
         ).fetchall()
         for t in token_rows:
@@ -83,7 +84,8 @@ def _run_notification_batch(db):
         dead_tokens = send_bulk_push(messages)
         if dead_tokens:
             db.execute(
-                text("DELETE FROM aass.USER_DEVICES_T WHERE DEVICE_TOKEN IN :tokens"),
+                text("DELETE FROM aass.USER_DEVICES_T WHERE DEVICE_TOKEN IN :tokens")
+                .bindparams(bindparam("tokens", expanding=True)),
                 {"tokens": tuple(dead_tokens)}
             )
 

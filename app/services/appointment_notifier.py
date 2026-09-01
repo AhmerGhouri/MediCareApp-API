@@ -1,4 +1,4 @@
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from app.services.push_service import send_bulk_push
 from app.logger import logger
 
@@ -7,7 +7,7 @@ def check_and_send_appointment_reminders(db):
     # Acquire this job's own lock row — independent from the report notifier's lock
     try:
         lock_row = db.execute(
-            text("SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'appointment_reminder' FOR UPDATE")
+            text("SELECT LOCK_NAME FROM aass.NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'appointment_reminder' FOR UPDATE")
         ).fetchone()
         if not lock_row:
             logger.error("Appointment reminder: lock row missing — run the setup SQL.")
@@ -22,7 +22,7 @@ def check_and_send_appointment_reminders(db):
         _send_reminders(db, reminder_type="TWO_HOUR")
         _send_reminders(db, reminder_type="DAY_BEFORE")
         db.execute(
-            text("UPDATE NOTIFICATION_JOB_LOCK_T SET LAST_RUN_AT = SYSTIMESTAMP WHERE LOCK_NAME = 'appointment_reminder'")
+            text("UPDATE aass.NOTIFICATION_JOB_LOCK_T SET LAST_RUN_AT = SYSTIMESTAMP WHERE LOCK_NAME = 'appointment_reminder'")
         )
         db.commit()
     except Exception as e:
@@ -78,7 +78,8 @@ def _send_reminders(db, reminder_type: str):
     tokens_by_phone = {}
     if phones:
         token_rows = db.execute(
-            text("SELECT MOB, DEVICE_TOKEN FROM aass.USER_DEVICES_T WHERE MOB IN :phones"),
+            text("SELECT MOB, aass.DEVICE_TOKEN FROM aass.USER_DEVICES_T WHERE MOB IN :phones")
+            .bindparams(bindparam("tokens", expanding=True)),
             {"phones": phones}
         ).fetchall()
         for t in token_rows:
@@ -101,7 +102,8 @@ def _send_reminders(db, reminder_type: str):
         dead_tokens = send_bulk_push(messages)
         if dead_tokens:
             db.execute(
-                text("DELETE FROM aass.USER_DEVICES_T WHERE DEVICE_TOKEN IN :tokens"),
+                text("DELETE FROM aass.USER_DEVICES_T WHERE DEVICE_TOKEN IN :tokens")
+                .bindparams(bindparam("tokens", expanding=True)),
                 {"tokens": tuple(dead_tokens)}
             )
 

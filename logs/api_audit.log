@@ -261,6 +261,7 @@ Help: https://docs.oracle.com/error-help/db/ora-00942/
 Help: https://docs.oracle.com/error-help/db/ora-00942/
 [SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
 (Background on this error at: https://sqlalche.me/e/20/4xp6)
+<<<<<<< Updated upstream
 >>>>>>> 8e94629601b31e56f246c6b4cd4d42d56a4ef841
 2026-08-31 16:31:56,057 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
 Help: https://docs.oracle.com/error-help/db/ora-00942/
@@ -10181,6 +10182,61 @@ Help: https://docs.oracle.com/error-help/db/ora-00942/
 [SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
 (Background on this error at: https://sqlalche.me/e/20/4xp6)
 2026-09-01 11:51:56,527 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+=======
+2026-08-31 16:23:39,089 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 16:28:38,992 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 16:33:39,062 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 16:33:39,081 - ERROR - [appointment_notifier.py:17] - Appointment reminder: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'appointment_reminder' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 16:38:38,991 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 16:43:39,091 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 16:48:38,997 - ERROR - [appointment_notifier.py:17] - Appointment reminder: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'appointment_reminder' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 16:48:39,052 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 16:53:39,007 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 16:58:39,088 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 17:03:38,985 - ERROR - [appointment_notifier.py:17] - Appointment reminder: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'appointment_reminder' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-08-31 17:03:39,029 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-09-01 11:20:58,755 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+[SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
+2026-09-01 11:25:58,441 - ERROR - [notifier.py:19] - Notifier: failed to acquire lock: (oracledb.exceptions.DatabaseError) ORA-00942: table or view does not exist
+>>>>>>> Stashed changes
 Help: https://docs.oracle.com/error-help/db/ora-00942/
 [SQL: SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE]
 (Background on this error at: https://sqlalche.me/e/20/4xp6)
