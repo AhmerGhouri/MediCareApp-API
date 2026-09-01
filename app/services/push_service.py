@@ -34,7 +34,7 @@ def send_push_notification(device_token: str, title: str, body: str, data_payloa
         if db is not None:
             from sqlalchemy import text
             try:
-                db.execute(text("DELETE FROM USER_DEVICES_T WHERE DEVICE_TOKEN = :t"), {"t": device_token})
+                db.execute(text("DELETE FROM aass.USER_DEVICES_T WHERE DEVICE_TOKEN = :t"), {"t": device_token})
                 db.commit()
             except Exception as cleanup_err:
                 db.rollback()

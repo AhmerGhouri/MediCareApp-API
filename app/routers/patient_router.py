@@ -846,13 +846,19 @@ def publish_report(report_id: str, patient_mob: str, background_tasks: Backgroun
     return {"status": "success", "message": "Report published and notification queued"}
 
 
-
+# @router.post("/notify/promotion")
+# def send_promo(title: str, body: str):
+#     from app.services.push_service import send_topic_notification
+#     send_topic_notification("promotions", title, body)
+#     return {"status": "success"}
 
 @router.post("/notify/promotion")
 def send_promo(title: str, body: str):
     from app.services.push_service import send_topic_notification
-    send_topic_notification("promotions", title, body)
-    return {"status": "success"}
+    message_id = send_topic_notification("promotions", title, body)
+    if message_id is None:
+        raise HTTPException(status_code=500, detail="Failed to send topic notification — check server logs")
+    return {"status": "success", "message_id": message_id}
 
 
 # Only For testing purpose

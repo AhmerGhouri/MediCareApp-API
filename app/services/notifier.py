@@ -9,7 +9,7 @@ def check_and_notify_new_reports(db):
     # STEP A: acquire the lock (blocks if another instance is mid-run)
     try:
         lock_row = db.execute(
-            text("SELECT LOCK_NAME FROM NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE")
+            text("SELECT LOCK_NAME FROM aass.NOTIFICATION_JOB_LOCK_T WHERE LOCK_NAME = 'report_notifier' FOR UPDATE")
         ).fetchone()
         if not lock_row:
             logger.error("Notifier: lock row missing — did you run the setup SQL?")
@@ -23,7 +23,7 @@ def check_and_notify_new_reports(db):
     try:
         _run_notification_batch(db)
         db.execute(
-            text("UPDATE NOTIFICATION_JOB_LOCK_T SET LAST_RUN_AT = SYSTIMESTAMP WHERE LOCK_NAME = 'report_notifier'")
+            text("UPDATE aass.NOTIFICATION_JOB_LOCK_T SET LAST_RUN_AT = SYSTIMESTAMP WHERE LOCK_NAME = 'report_notifier'")
         )
         db.commit()  # releases the lock
     except Exception as e:
@@ -62,7 +62,7 @@ def _run_notification_batch(db):
     tokens_by_phone = {}
     if phones:
         token_rows = db.execute(
-            text("SELECT MOB, DEVICE_TOKEN FROM USER_DEVICES_T WHERE MOB IN :phones"),
+            text("SELECT MOB, DEVICE_TOKEN FROM aass.USER_DEVICES_T WHERE MOB IN :phones"),
             {"phones": phones}
         ).fetchall()
         for t in token_rows:
@@ -83,7 +83,7 @@ def _run_notification_batch(db):
         dead_tokens = send_bulk_push(messages)
         if dead_tokens:
             db.execute(
-                text("DELETE FROM USER_DEVICES_T WHERE DEVICE_TOKEN IN :tokens"),
+                text("DELETE FROM aass.USER_DEVICES_T WHERE DEVICE_TOKEN IN :tokens"),
                 {"tokens": tuple(dead_tokens)}
             )
 
@@ -92,7 +92,7 @@ def _run_notification_batch(db):
     for row in rows:
         try:
             db.execute(
-                text("INSERT INTO NOTIFICATION_LOG_T (LTESTD_UNIQUE_ID) VALUES (:id)"),
+                text("INSERT INTO aass.NOTIFICATION_LOG_T (LTESTD_UNIQUE_ID) VALUES (:id)"),
                 {"id": row["ltestd_unique_id"]}
             )
         except Exception:
