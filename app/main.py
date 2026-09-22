@@ -63,32 +63,54 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={
             "success": False,
             "error_type": "InternalServerError",
-            "message": "An unexpected error occurred on the server. Our team has been notified."
+            "code": "INTERNAL_ERROR",
+            "message": "An unexpected error occurred on the server. Please try again later."
         },
     )
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    codes = {400: "INVALID_REQUEST", 401: "AUTHENTICATION_REQUIRED",
+             403: "ACCESS_DENIED", 404: "NOT_FOUND", 409: "CONFLICT",
+             422: "VALIDATION_ERROR", 429: "RATE_LIMITED",
+             500: "INTERNAL_ERROR", 503: "SERVICE_UNAVAILABLE"}
+    detail = exc.detail if isinstance(exc.detail, dict) else {}
+    message = detail.get("message") if detail else exc.detail
+    if not isinstance(message, str):
+        message = "Unable to complete this request."
+    if exc.status_code >= 500 and not detail:
+        message = "The service is temporarily unavailable. Please try again later."
     return JSONResponse(
         status_code=exc.status_code,
+        headers=exc.headers,
         content={
             "success": False,
             "error_type": "HTTPException",
-            "message": exc.detail
+            "code": detail.get("code", codes.get(exc.status_code, "REQUEST_FAILED")),
+            "message": message,
         },
     )
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Do not echo Pydantic input/context, which may contain credentials or PHI.
+    fields = {"mobile_number", "mobile", "email", "password", "new_password",
+              "otp", "otp_code", "full_name", "date_of_birth", "gender",
+              "opat_id", "consl_id", "appoint_date", "device_token", "platform"}
+    errors = {}
+    for error in exc.errors():
+        loc = error.get("loc", ())
+        field = loc[-1] if loc else None
+        if isinstance(field, str) and field in fields:
+            errors[field] = "Please check this field."
     return JSONResponse(
         status_code=422,
-        content={
-            "success": False,
-            "error_type": "ValidationError",
-            "message": "The data provided is invalid.",
-            "details": exc.errors()
-        },
+        content={"success": False, "error_type": "ValidationError",
+                 "code": "VALIDATION_ERROR", "message": "The data provided is invalid.",
+                 "errors": errors},
     )
+
 
 # Include the routes we are about to create
 app.include_router(auth_router.router, prefix="/auth", tags=["Authentication"])

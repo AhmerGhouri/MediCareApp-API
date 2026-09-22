@@ -5,7 +5,9 @@ from datetime import date, datetime, time
 from typing import List
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from oracledb import IntegrityError
+from sqlalchemy.exc import IntegrityError
+import time as retry_time
+from app.logger import logger
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.db.oracle import get_db
@@ -55,7 +57,7 @@ def get_lab_reports(opat_id: str, db: Session = Depends(get_db), current_user: A
     result_rows = db.execute(query, {"opat_id": opat_id}).mappings().all()
     
     if not result_rows:
-        raise HTTPException(status_code=403, detail="No Report found for this MR Number")
+        return {"opat_id": opat_id, "patient_name": None, "mobile": None, "reports": []}
     
     # Since the patient details (name, id) are the same in every row, 
     # we take them from the first row.
@@ -123,7 +125,7 @@ def get_radiology_reports(opat_id: str, db: Session = Depends(get_db), current_u
     result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
     
     if not result_rows:
-        raise HTTPException(status_code=403, detail="No Radiology Report found for this MR Number")
+        return {"opat_id": opat_id, "patient_name": None, "mobile": None, "reports": []}
     
     # Since the patient details (name, id) are the same in every row, 
     # we take them from the first row.
@@ -187,7 +189,7 @@ def get_inpatient_history(opat_id: str, db: Session = Depends(get_db), current_u
     result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
     
     if not result_rows:
-        raise HTTPException(status_code=403, detail="No Report found for this MR Number")
+        return {"opat_id": opat_id, "patient_name": None, "mobile": None, "inpatienthistory": []}
     
     # Since the patient details (name, id) are the same in every row, 
     # we take them from the first row.
@@ -252,7 +254,7 @@ def get_consultation_history(opat_id: str, db: Session = Depends(get_db), curren
     result_rows = db.execute(query, {"opat_id": opat_id}).mappings().all()
     
     if not result_rows:
-        raise HTTPException(status_code=404, detail="No Consultation History found for this MR Number")
+        return {"opat_id": opat_id, "patient_name": None, "mobile": None, "consultationshistory": []}
     
     first_row = result_rows[0]
             
@@ -320,7 +322,7 @@ def get_upcomingappointments(opat_id: str, db: Session = Depends(get_db), curren
     result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
     
     if not result_rows:
-        raise HTTPException(status_code=403, detail="No Upcoming Appointments found for this MR Number")
+        return {"opat_id": opat_id, "patient_name": None, "mobile": None, "appointments": []}
     
     # Since the patient details (name, id) are the same in every row, 
     # we take them from the first row.
@@ -392,7 +394,7 @@ def get_todaysclinic(db: Session = Depends(get_db)):
     result_rows = db.execute(query).mappings().all()
     
     if not result_rows:
-        raise HTTPException(status_code=403, detail="No Clinics found for today")
+        return {"day": datetime.now().strftime("%A"), "current_date": date.today().isoformat(), "consultations": []}
     
     # we take them from the first row.
     first_row = result_rows[0]
@@ -447,7 +449,7 @@ def get_consultants(db: Session = Depends(get_db)):
     result_rows = db.execute(query).mappings().all()
     
     if not result_rows:
-        raise HTTPException(status_code=403, detail="No Upcoming Appointments found for this MR Number")
+        return []
 
     
     clean_data = []
@@ -533,7 +535,7 @@ def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session
     result_rows = db.execute(query, {"opat_id": opat_id, "consl_id" : consl_id , "app_date" : app_date , "mobile_number": current_user.mob}).mappings().all()
     
     if not result_rows:
-        raise HTTPException(status_code=403, detail="No Upcoming Appointments found for this MR Number")
+        return {"consl_id": consl_id, "consl_name": None, "dept_id": None, "Dept": None, "appointments": []}
     
     # Since the patient details (name, id) are the same in every row, 
     # we take them from the first row.
@@ -572,6 +574,7 @@ def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session
   
 @router.post("/{opat_id}/{consl_id}/createappointment")
 def create_appointment(
+    background_tasks: BackgroundTasks,
     opat_id: str, 
     consl_id: str, # Unified path parameter
     appointment: AppointmentBooking, 
@@ -670,9 +673,9 @@ def create_appointment(
         except IntegrityError as ie:
             db.rollback()
             attempt += 1
-            time.sleep(0.05)  # 50ms pause to let competing queries clear out
+            retry_time.sleep(0.05)  # 50ms pause to let competing queries clear out
             if attempt >= max_attempts:
-                raise HTTPException(status_code=400, detail=f"Transaction collision limit reached: {str(ie)}")
+                raise HTTPException(status_code=503, detail={"code": "BOOKING_BUSY", "message": "Booking is temporarily busy. Please check your appointments before trying again."})
         
         except HTTPException:
             # Re-raise our custom 409 conflict exception cleanly without dropping into generic error handler
@@ -680,23 +683,28 @@ def create_appointment(
             
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=f"Database execution failed: {str(e)}")
+            logger.exception("Appointment database operation failed")
+            raise HTTPException(status_code=500, detail={"code": "BOOKING_FAILED", "message": "We could not confirm your booking. Check upcoming appointments before trying again."})
         
-    tokens = db.execute(
-    text("SELECT DEVICE_TOKEN FROM USER_DEVICES_T WHERE MOB = :mob"),
-    {"mob": current_user.mob}
-    ).fetchall()
+    # The booking is already committed; notification failure must not report
+    # a failed booking and encourage duplicate submissions.
+    try:
+        tokens = db.execute(
+            text("SELECT DEVICE_TOKEN FROM USER_DEVICES_T WHERE MOB = :mob"),
+            {"mob": current_user.mob}
+        ).fetchall()
+        for token in tokens:
+            background_tasks.add_task(
+                send_push_notification,
+                device_token=token.DEVICE_TOKEN,
+                title="Appointment Confirmed",
+                body="Your appointment has been confirmed.",
+                data_payload={"tran_id": str(generated_trans_id), "screen": "AppointmentDetails"}
+            )
+    except Exception:
+        db.rollback()
+        logger.exception("Booking saved, but notification scheduling failed")
 
-    for t in tokens:
-        BackgroundTasks.add_task(
-        send_push_notification,
-        device_token=t.DEVICE_TOKEN,
-        title="Appointment Confirmed",
-        body=f"Your appointment with {appointment.consl_id} on {appointment.appoint_date} at {appointment.appoint_time} is confirmed.",
-        data_payload={"tran_id": str(generated_trans_id), "screen": "AppointmentDetails"},
-        db=db
-    )
-        
     return {
         "status": "success", 
         "message": "Appointment booked and slot allocated successfully.", 
@@ -779,7 +787,7 @@ def get_combinelabreports(opat_id: str, db: Session = Depends(get_db), current_u
     result_rows = db.execute(query, {"opat_id": opat_id, "mobile_number": current_user.mob}).mappings().all()
     
     if not result_rows:
-        raise HTTPException(status_code=403, detail="No Combine Reports found for this MR Number")
+        return []
     
     
     def clean(value):

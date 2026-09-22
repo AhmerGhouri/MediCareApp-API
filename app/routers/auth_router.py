@@ -20,7 +20,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     # 1. Check if the user already exists to avoid ORA-00001 (Unique Constraint)
     existing_user = db.query(AppUser).filter(AppUser.mob == request.mobile_number).first()
     if existing_user:
-        raise HTTPException(status_code=400, detail="Mobile number already registered")
+        raise HTTPException(status_code=409, detail={"code": "ACCOUNT_EXISTS", "message": "Mobile number already registered"})
 
     # 2. Create a new instance of your Oracle Model
     # We map the names from your Pydantic Schema to your Oracle Columns
@@ -152,9 +152,8 @@ def reset_password(request: ResetPassword, db: Session = Depends(get_db)):
     """)        
     
     # Execute update and analyze row effect
-    result = db.execute(query, {"mobile_number": request.mobile_number , "password" : request.password})
-    
     try:
+        result = db.execute(query, {"mobile_number": request.mobile_number , "password" : request.password})
         if result.rowcount == 0:
             # If 0 rows are updated, the slot was either already taken or the details are invalid
             db.rollback()
@@ -171,9 +170,11 @@ def reset_password(request: ResetPassword, db: Session = Depends(get_db)):
         
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=f"Database execution failed: {str(e)}")
+        logger.exception("Password reset database operation failed")
+        raise HTTPException(status_code=500, detail={"code": "DATABASE_ERROR", "message": "Unable to complete this request. Please try again later."})
 
     return {
+        "success": True,
         "status": "success", 
         "message": "Password has been reset successfully."
     }
@@ -188,7 +189,7 @@ def request_otp(payload: OTPRequest, background_tasks: BackgroundTasks, db: Sess
     check_user = text("SELECT 1 FROM aass.MMH_USERREGDATA WHERE mob = :mobile")
     if not db.execute(check_user, {"mobile" : payload.mobile}).fetchone():
         logger.warning(f"OTP requested for unregistered email: {payload.mobile}")
-        return {"status": "success", "message": "If that email is registered, an OTP has been sent."}
+        return {"success": True, "status": "success", "message": "If that email is registered, an OTP has been sent."}
 
     # 2. Generate a secure 6-digit code
     otp_code = str(random.randint(100000, 999999))
@@ -196,13 +197,13 @@ def request_otp(payload: OTPRequest, background_tasks: BackgroundTasks, db: Sess
     # 3. Store in database with a 10-minute Oracle SYSDATE expiration
     merge_query = text("""
        MERGE INTO aass.USER_PASS_OTP_T tgt
-        USING (SELECT :mobile AS MOBILE_NO, :email as EMAIL, :otp AS aass.OTP_CODE FROM DUAL) src
+        USING (SELECT :mobile AS MOBILE_NO, :email as EMAIL, :otp AS OTP_CODE FROM DUAL) src
         ON (tgt.MOBILE_NO = src.MOBILE_NO)
         WHEN MATCHED THEN 
-            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.OTP_EXPIRY = SYSTIMESTAMP + INTERVAL '1' MINUTE
+            UPDATE SET tgt.OTP_CODE = src.OTP_CODE, tgt.OTP_EXPIRY = SYSTIMESTAMP + INTERVAL '10' MINUTE
         WHEN NOT MATCHED THEN 
             INSERT (MOBILE_NO ,EMAIL, OTP_CODE, OTP_EXPIRY) 
-            VALUES (src.MOBILE_NO , src.EMAIL, src.OTP_CODE, SYSTIMESTAMP + INTERVAL '1' MINUTE)
+            VALUES (src.MOBILE_NO , src.EMAIL, src.OTP_CODE, SYSTIMESTAMP + INTERVAL '10' MINUTE)
         """)
     
     try:
@@ -212,7 +213,7 @@ def request_otp(payload: OTPRequest, background_tasks: BackgroundTasks, db: Sess
         
         # 4. Offload the SMTP request to the background so the API returns instantly
         send_otp_email(payload.email, otp_code)
-        return {"status": "success", "message": "Email sent successfully!"}
+        return {"success": True, "status": "success", "message": "Email sent successfully!"}
         
         
     except Exception as e:
@@ -256,7 +257,7 @@ def verify_and_reset(payload: PasswordResetConfirm, db: Session = Depends(get_db
         logger.error(f"DB Error during password reset for {payload.mobile}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    return {"status": "success", "message": "Password reset successfully. You can now log in."}
+    return {"success": True, "status": "success", "message": "Password reset successfully. You can now log in."}
     
     
       
@@ -286,8 +287,7 @@ def register_device(
             "platform": payload.platform
         })
         db.commit()
-        return {"status": "success", "message": "Device token registered"}
+        return {"success": True, "status": "success", "message": "Device token registered"}
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to register device token") 
-    
+        raise HTTPException(status_code=500, detail="Failed to register device token")

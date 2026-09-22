@@ -50,5 +50,7 @@ def send_otp_email(receiver_email: str, otp: str):
         
     except smtplib.SMTPAuthenticationError:
         logger.critical("SMTP Authentication failed. Verify your email credentials in .env")
+        raise
     except Exception as e:
-        logger.error(f"SMTP execution failed for {receiver_email}. Error: {str(e)}")
+        logger.error("SMTP execution failed")
+        raise
