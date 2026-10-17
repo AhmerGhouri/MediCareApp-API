@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.db.oracle import SessionLocal
-from app.routers import auth_router, health_router, patient_router
+from app.routers import auth_router, health_router, patient_router, web_router
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.notifier import check_and_notify_new_reports
 from app.services.appointment_notifier import check_and_send_appointment_reminders
@@ -17,7 +17,6 @@ logger = logging.getLogger("hospital_api_logger")
 logger.setLevel(logging.ERROR)
 
 app = FastAPI(title="Hospital Patient API")
-app.include_router(health_router.router, tags=["health"])
 
 
 def scheduled_report_check():
@@ -94,6 +93,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Include the routes we are about to create
 app.include_router(auth_router.router, prefix="/auth", tags=["Authentication"])
 app.include_router(patient_router.router, prefix="/patients", tags=["Patient Data"])
+app.include_router(web_router.router, prefix="/web", tags=["Web"])
+app.include_router(health_router.router, tags=["health"])
+
 
 @app.get("/")
 def read_root():
