@@ -9,6 +9,10 @@ from app.routers import auth_router, health_router, patient_router, web_router
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.notifier import check_and_notify_new_reports
 from app.services.appointment_notifier import check_and_send_appointment_reminders
+from fastapi.middleware.cors import CORSMiddleware
+
+
+
 
 
 
@@ -17,6 +21,17 @@ logger = logging.getLogger("hospital_api_logger")
 logger.setLevel(logging.ERROR)
 
 app = FastAPI(title="Hospital Patient API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://clinics.medicarehospital.pk",
+        "http://localhost:3000",   # local dev only, remove in production
+    ],
+    allow_credentials=False,       # you use a Bearer token header, not cookies
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 
 def scheduled_report_check():
