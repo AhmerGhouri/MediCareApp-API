@@ -31,26 +31,29 @@ def create_appointment_request(
 ):
     # Honeypot: bots fill hidden fields. Pretend success, store nothing.
     if payload.website:
-        return {"success": True, "message": "Request received."}
+    	logger.error(f"DEBUG appointment: dropped by honeypot, value={payload.website!r}")
+    	return {"success": True, "message": "Request received."}
 
     client_ip = request.headers.get("x-real-ip") or request.client.host
     if not verify_turnstile(payload.captcha_token, client_ip):
-        raise HTTPException(status_code=400, detail="Verification failed. Please try again.")
+    	logger.error(f"DEBUG appointment: captcha failed")
+    	raise HTTPException(status_code=400, detail="Verification failed. Please try again.")
 
     # Duplicate guard: same phone + same date already pending
     dup = db.execute(
-        text("""SELECT 1 FROM clinic_appointment_requests
+        text("""SELECT 1 FROM aass.clinic_appointment_requests
                 WHERE phone_number = :phone AND preferred_date = :pdate AND status = 'Pending'"""),
         {"phone": payload.phone_number, "pdate": payload.preferred_date},
     ).fetchone()
     if dup:
-        return {"success": True, "message": "Request received."}
+    	logger.error(f"DEBUG appointment: skipped as duplicate")
+    	return {"success": True, "message": "Request received."}
 
     try:
         db.execute(
-            text("""INSERT INTO clinic_appointment_requests
-                    (full_name, phone_number, specialty, doctor_name, preferred_date, status, create_at)
-                    VALUES (:name, :phone, :spec, :doctor, :pdate, :status, :created_at)"""),
+            text("""INSERT INTO aass.clinic_appointment_requests
+                    (full_name, phone_number, specialty, doctor_name, preferred_date)
+                    VALUES (:name, :phone, :spec, :doctor, :pdate)"""),
             {"name": payload.full_name, "phone": payload.phone_number,
              "spec": payload.specialty, "doctor": payload.doctor_name,
              "pdate": payload.preferred_date },
