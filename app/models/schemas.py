@@ -5,6 +5,43 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import List, Optional
 
 
+TIME_PATTERN = re.compile(r"^\d{2}:\d{2}$")
+class AgentAppointmentBooking(BaseModel):
+    """Body for the voice agent. MR number and mobile number are optional."""
+    patient_name: str = Field(min_length=1, max_length=100)
+    mobile_number: Optional[str] = Field(default=None, max_length=30)
+    opat_id: Optional[str] = Field(default=None, max_length=50)
+    appoint_date: str            # DD-MON-YYYY (e.g. 27-JUN-2026) or YYYY-MM-DD
+    appoint_time: str            # HH:MM, must match a slot time
+    from_time: str               # HH:MM
+    to_time: str                 # HH:MM
+    appointment_day: str = Field(min_length=1, max_length=20)
+
+    @field_validator("patient_name")
+    @classmethod
+    def clean_name(cls, v):
+        v = v.strip()
+        if not v:
+            raise ValueError("name is empty")
+        return v
+
+    @field_validator("mobile_number")
+    @classmethod
+    def clean_mobile(cls, v):
+        if v is None:
+            return None
+        digits = re.sub(r"\D", "", v)
+        return digits[:15] or None   # keep digits only; empty becomes None
+
+    @field_validator("appoint_time", "from_time", "to_time")
+    @classmethod
+    def check_time(cls, v):
+        v = v.strip()
+        if not TIME_PATTERN.match(v):
+            raise ValueError("time must be HH:MM")
+        return v
+
+
 class ClinicAppointmentRequest(BaseModel):
     full_name: str = Field(min_length=2, max_length=150)
     phone_number: str = Field(max_length=20)

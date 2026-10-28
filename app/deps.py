@@ -1,5 +1,9 @@
 # app/deps.py
-from fastapi import Depends, HTTPException, status
+import os
+import secrets
+
+from fastapi import Depends, HTTPException, Header, status
+from fastapi import Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from sqlalchemy.orm import Session
@@ -26,3 +30,9 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=401, detail="User not found")
         
     return user
+
+
+def require_agent_key(x_api_key: str = Header(default="")):
+    expected = os.getenv("AGENT_API_KEY", "")
+    if not expected or not secrets.compare_digest(x_api_key, expected):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")

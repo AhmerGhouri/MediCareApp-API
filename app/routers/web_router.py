@@ -31,13 +31,13 @@ def create_appointment_request(
 ):
     # Honeypot: bots fill hidden fields. Pretend success, store nothing.
     if payload.website:
-    	logger.error(f"DEBUG appointment: dropped by honeypot, value={payload.website!r}")
-    	return {"success": True, "message": "Request received."}
+        logger.error(f"DEBUG appointment: dropped by honeypot, value={payload.website!r}")
+        return {"success": True, "message": "Request received."}
 
     client_ip = request.headers.get("x-real-ip") or request.client.host
     if not verify_turnstile(payload.captcha_token, client_ip):
-    	logger.error(f"DEBUG appointment: captcha failed")
-    	raise HTTPException(status_code=400, detail="Verification failed. Please try again.")
+        logger.error(f"DEBUG appointment: captcha failed")
+        raise HTTPException(status_code=400, detail="Verification failed. Please try again.")
 
     # Duplicate guard: same phone + same date already pending
     dup = db.execute(
@@ -46,8 +46,8 @@ def create_appointment_request(
         {"phone": payload.phone_number, "pdate": payload.preferred_date},
     ).fetchone()
     if dup:
-    	logger.error(f"DEBUG appointment: skipped as duplicate")
-    	return {"success": True, "message": "Request received."}
+        logger.error(f"DEBUG appointment: skipped as duplicate")
+        return {"success": True, "message": "Request received."}
 
     try:
         db.execute(

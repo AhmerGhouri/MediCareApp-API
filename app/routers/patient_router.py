@@ -505,11 +505,11 @@ def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session
                     AND
                         A.APPD_DAY = E.TIME_DAYS
                     AND
-                        (
+                      (
                         A.APPD_DATE = TO_CHAR(SYSDATE, 'DD/MON/YYYY') 
-                        AND 
+                            AND 
                         A.TIME_IN >= TO_CHAR(SYSDATE, 'HH24:MI')
-                        )                            
+                        )                               
                     AND
                         A.PAT_MR IS NULL
                     GROUP BY  
