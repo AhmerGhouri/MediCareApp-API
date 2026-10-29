@@ -497,19 +497,23 @@ def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session
                     AND 
                         C.CONSL_ID = E.TIME_CONSL_ID
                     AND 
-                        C.CONSL_ID = :consl_id
+                        C.CONSL_ID = '50054'
                     AND
                         C.CONSL_ID = A.CONSLD_ID
                     AND
-                        A.APPD_DATE = :app_date
+                        A.APPD_DATE = '30-OCT-2026'
                     AND
                         A.APPD_DAY = E.TIME_DAYS
                     AND
                       (
-                        A.APPD_DATE = TO_CHAR(SYSDATE, 'DD/MON/YYYY') 
-                            AND 
+                        (
+                          A.APPD_DATE = TO_CHAR(SYSDATE, 'DD/MON/YYYY')
+                          OR
+                          A.APPD_DATE > TO_CHAR(SYSDATE, 'DD/MON/YYYY')
+                          ) 
+                        AND 
                         A.TIME_IN >= TO_CHAR(SYSDATE, 'HH24:MI')
-                        )                               
+                      )                               
                     AND
                         A.PAT_MR IS NULL
                     GROUP BY  
@@ -527,7 +531,7 @@ def get_appointments(opat_id: str, consl_id : str , app_date : str , db: Session
                         A.PAT_MR,
                         E.TIME_CONSL_DEPT,
                         D.MDEPT_DESC
-                        ORDER BY TIME_IN ASC 
+                        ORDER BY TIME_IN ASC  
                     """)
 
     

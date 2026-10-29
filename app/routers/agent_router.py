@@ -55,32 +55,36 @@ def get_appointments(consl_id: str, app_date: str, db: Session = Depends(get_db)
                         TRIM(C.CONSL_DESC) CONSL_DESC,
                         E.TIME_CONSL_DEPT,
                         TRIM(D.MDEPT_DESC) MDEPT_DESC
-                    FROM
+                    FROM 
                         aass.TIMING_T E,
                         aass.CONSL_T C,
                         aass.MDEPT_T D,
                         aass.CONSL_APPD_T A
                     WHERE
                         E.TIME_CONSL_DEPT = D.MDEPT_ID
-                    AND
+                    AND 
                         C.CONSL_ID = E.TIME_CONSL_ID
-                    AND
-                        C.CONSL_ID = :consl_id
+                    AND 
+                        C.CONSL_ID = '50054'
                     AND
                         C.CONSL_ID = A.CONSLD_ID
                     AND
-                        A.APPD_DATE = :app_date
+                        A.APPD_DATE = '30-OCT-2026'
                     AND
                         A.APPD_DAY = E.TIME_DAYS
                     AND
+                      (
                         (
-                        A.APPD_DATE = TO_CHAR(SYSDATE, 'DD/MON/YYYY')
-                        AND
+                          A.APPD_DATE = TO_CHAR(SYSDATE, 'DD/MON/YYYY')
+                          OR
+                          A.APPD_DATE > TO_CHAR(SYSDATE, 'DD/MON/YYYY')
+                          ) 
+                        AND 
                         A.TIME_IN >= TO_CHAR(SYSDATE, 'HH24:MI')
-                        )
+                      )                               
                     AND
                         A.PAT_MR IS NULL
-                    GROUP BY
+                    GROUP BY  
                         E.TIME_CONSL_DEPT,
                         E.TIME_FR,
                         E.TIME_TO,
@@ -95,7 +99,7 @@ def get_appointments(consl_id: str, app_date: str, db: Session = Depends(get_db)
                         A.PAT_MR,
                         E.TIME_CONSL_DEPT,
                         D.MDEPT_DESC
-                        ORDER BY TIME_IN ASC
+                        ORDER BY TIME_IN ASC 
                     """)
 
     result_rows = db.execute(query, {"consl_id": consl_id, "app_date": app_date}).mappings().all()
