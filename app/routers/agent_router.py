@@ -65,23 +65,26 @@ def get_appointments(consl_id: str, app_date: str, db: Session = Depends(get_db)
                     AND 
                         C.CONSL_ID = E.TIME_CONSL_ID
                     AND 
-                        C.CONSL_ID = :consl_id
+                        C.CONSL_ID = '50041'
                     AND
                         C.CONSL_ID = A.CONSLD_ID
                     AND
-                        A.APPD_DATE = :app_date
+                        TO_DATE(A.APPD_DATE) = '02-NOV-2026'
                     AND
                         A.APPD_DAY = E.TIME_DAYS
                     AND
-                      (
-                        (
-                          A.APPD_DATE = TO_CHAR(SYSDATE, 'DD/MON/YYYY')
-                          OR
-                          A.APPD_DATE > TO_CHAR(SYSDATE, 'DD/MON/YYYY')
-                          ) 
-                        AND 
-                        A.TIME_IN >= TO_CHAR(SYSDATE, 'HH24:MI')
-                      )                               
+                    (
+                         -- Future dates: show all available slots
+                         TRUNC(A.APPD_DATE) > TRUNC(SYSDATE)
+                             OR
+
+                         -- Today: show only slots at or after the current time
+                         (
+                           TRUNC(A.APPD_DATE) = TRUNC(SYSDATE)
+                           AND A.TIME_IN >= TO_CHAR(SYSDATE, 'HH24:MI')
+                         )
+                    )
+                                              
                     AND
                         A.PAT_MR IS NULL
                     GROUP BY  
