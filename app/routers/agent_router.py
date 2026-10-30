@@ -5,13 +5,14 @@ from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError   # SQLAlchemy wraps driver errors, so import it from here, not oracledb
 from sqlalchemy.orm import Session
 from app.db.oracle import get_db
 from app.deps import require_agent_key       # API key check (X-API-Key header)
 from app.logger import logger
-from app.models.schemas import AgentAppointmentBooking
+from app.models.models import HospitalPatient
+from app.models.schemas import AgentAppointmentBooking, AgentPatientRequest
 
 # Every route in this router requires the agent API key.
 router = APIRouter(dependencies=[Depends(require_agent_key)])
@@ -37,6 +38,39 @@ def _parse_date(value: str):
         status_code=400,
         detail="Invalid date format. Use DD-MON-YYYY (e.g. 27-JUN-2026) or YYYY-MM-DD."
     )
+    
+    
+@router.post("/patients")
+def get_patients_data(request: AgentPatientRequest, db: Session = Depends(get_db)):
+    # 1. Strip non-digit characters from incoming mobile number
+    clean_mobile = re.sub(r"\D", "", request.mobile_number)
+
+    # 3. Fetch ALL MR numbers matching the normalized phone number (ignores dashes in Oracle)
+    patients = (
+        db.query(HospitalPatient)
+        .filter(
+            func.regexp_replace(HospitalPatient.opat_phone, "[^0-9]", "")
+            == clean_mobile
+        )
+        .all()
+    )
+
+    # Extract array of MR numbers for JWT payload
+    mr_no_list = [str(p.opat_id) for p in patients]
+
+    # 5. Return token and array of MR numbers to React Native
+    return {
+        "mr_numbers": [
+            {
+                "mr_no": str(p.opat_id),
+                "patient_name": p.opat_pname,
+                "gender": p.opat_sex,
+                "dob": p.opat_bdate,
+            }
+            for p in patients
+        ],
+    }
+    
 
 
 @router.get("/{consl_id}/{app_date}/appointments")

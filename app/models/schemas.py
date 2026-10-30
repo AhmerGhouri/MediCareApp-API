@@ -83,6 +83,9 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     mobile_number: str
     password: str
+    
+class AgentPatientRequest(BaseModel):
+    mobile_number: str
 
 class DeviceTokenRequest(BaseModel):
     device_token: str
