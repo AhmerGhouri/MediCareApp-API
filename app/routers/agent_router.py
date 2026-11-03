@@ -99,11 +99,11 @@ def get_appointments(consl_id: str, app_date: str, db: Session = Depends(get_db)
                     AND 
                         C.CONSL_ID = E.TIME_CONSL_ID
                     AND 
-                        C.CONSL_ID = '50041'
+                        C.CONSL_ID = :consl_id
                     AND
                         C.CONSL_ID = A.CONSLD_ID
                     AND
-                        TO_DATE(A.APPD_DATE) = '02-NOV-2026'
+                        TO_DATE(A.APPD_DATE) = :app_date
                     AND
                         A.APPD_DAY = E.TIME_DAYS
                     AND
